@@ -52,12 +52,14 @@ export default function GuidePage() {
             <div className="space-y-2">
               <div className="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center font-bold">2</div>
               <p className="text-sm font-bold text-blue-100">フライトを計算・登録</p>
-              <p className="text-xs text-blue-200/70">左メニューの「フライト予定」から、新旧運賃や日付、往復を設定して保存します。(復路が異なる場合は片道でフライト登録してください。)</p>
+              <p className="text-xs text-blue-200/70">左メニューの「フライト予定」から、新旧運賃や日付、往復を設定して保存します。
+              (復路が異なる場合は片道ごとにフライト登録してください。)</p>
             </div>
             <div className="space-y-2">
               <div className="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center font-bold">3</div>
               <p className="text-sm font-bold text-blue-100">データをバックアップ</p>
-              <p className="text-xs text-blue-200/70">スマホの機種変更時などは「データの保存」からファイルを書き出してください。</p>
+              <p className="text-xs text-blue-200/70">cookieを使用しているので毎年のフライト記録も保存できます！
+              スマホの機種変更時などは「データの保存」からファイルを書き出してください。</p>
             </div>
           </div>
           <div className="pt-4 flex justify-center border-t border-blue-700">
