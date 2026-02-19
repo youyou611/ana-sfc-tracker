@@ -8,23 +8,23 @@ export default function GuidePage() {
       <div className="max-w-4xl mx-auto space-y-8">
         
         <header className="border-b border-slate-200 pb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-[#003184]">SFC修行ガイド 2026版</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-[#003184]">SFC修行ガイド 2026年版</h1>
           <p className="text-slate-500 text-xs mt-2 font-medium">ANAスーパーフライヤーズカード解脱のための基礎知識とツールの使い方</p>
         </header>
 
         <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm space-y-6">
           <h2 className="text-lg font-bold text-[#003184] border-l-4 border-[#003184] pl-3">SFC（スーパーフライヤーズカード）とは？</h2>
           <p className="text-sm text-slate-600 leading-relaxed">
-            ANAの「プラチナ」以上のステータスを獲得した人だけが申し込める、特別なクレジットカードです。一度発行すれば、年会費を払い続ける限り**「一生涯、ANAの上級会員特典（ラウンジ利用、優先搭乗、手荷物優先受け取りなど）」**を享受できます。このカードを取得するために飛行機に乗りまくる行為を「SFC修行」と呼びます。
+            ANAの「プラチナ」以上のステータスを獲得した人だけが申し込める、特別なクレジットカードです。一度発行すれば、年会費を払い続ける限り「ANAの上級会員特典（ラウンジ利用、優先搭乗、手荷物優先受け取りなど）」を受けることができます。このカードを取得するために飛行機に乗りまくる行為を「SFC修行」と呼びます。
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm space-y-4">
-            <h3 className="text-base font-bold text-slate-800">ルートA：通常規定ルート</h3>
+            <h3 className="text-base font-bold text-slate-800">ルートA：通常</h3>
             <p className="text-3xl font-black text-[#003184]">50,000 <span className="text-sm font-bold text-slate-500">PP</span></p>
             <p className="text-xs text-slate-600 leading-relaxed">
-              1月1日から12月31日までの1年間で、飛行機に乗ってひたすらプレミアムポイント（PP）を貯める伝統的なルートです。出張が多い方や、沖縄・石垣などの長距離を何度も往復（タッチ修行）できる方におすすめです。
+              1月1日から12月31日までの1年間で、飛行機に乗ってひたすらプレミアムポイント（PP）を貯めるルートです。出張が多い方や、沖縄・石垣などの長距離を何度も往復（タッチ修行）できる方におすすめです。
             </p>
           </div>
 
@@ -37,7 +37,7 @@ export default function GuidePage() {
               <li>対象サービス利用 <span className="font-bold text-slate-800">7サービス以上</span></li>
               <li className="text-red-500 font-bold mt-2">※2026年度より「ANA Mall」「ANAトラベラーズ」の2つが利用必須となります。</li>
             </ul>
-            <p className="text-[10px] text-slate-500 pt-2 border-t border-blue-100">飛行機に乗る回数を減らし、日常の買い物（カード決済）のパワーでプラチナに到達する現代的なルートです。</p>
+            <p className="text-[10px] text-slate-500 pt-2 border-t border-blue-100">飛行機に乗る回数を減らし、日常の買い物（カード決済）などでプラチナに到達するルートです。</p>
           </div>
         </div>
 
@@ -47,12 +47,12 @@ export default function GuidePage() {
             <div className="space-y-2">
               <div className="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center font-bold">1</div>
               <p className="text-sm font-bold text-blue-100">目標を決める</p>
-              <p className="text-xs text-blue-200/70">ダッシュボードで「通常(50,000PP)」か「LS(30,000PP)」を選択します。</p>
+              <p className="text-xs text-blue-200/70">ダッシュボードで目標のpp数を選択します。</p>
             </div>
             <div className="space-y-2">
               <div className="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center font-bold">2</div>
               <p className="text-sm font-bold text-blue-100">フライトを計算・登録</p>
-              <p className="text-xs text-blue-200/70">左メニューの「フライト予定」から、新旧運賃や日付、往復を設定して保存します。</p>
+              <p className="text-xs text-blue-200/70">左メニューの「フライト予定」から、新旧運賃や日付、往復を設定して保存します。(復路が異なる場合は片道でフライト登録してください。)</p>
             </div>
             <div className="space-y-2">
               <div className="bg-white/10 w-8 h-8 rounded-full flex items-center justify-center font-bold">3</div>
