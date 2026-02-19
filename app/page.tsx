@@ -75,7 +75,7 @@ export default function Home() {
         
         <header className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-slate-200 pb-4 gap-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#003184]">SFC修行 ダッシュボード</h1>
+            <h1 className="text-xl font-bold tracking-tight text-[#003184]">ANAステータス修行僧のためのダッシュボード</h1>
             <div className="flex items-center gap-2 mt-2">
               <select className="bg-slate-200 border-none text-xs font-bold text-slate-600 rounded px-2 py-1 outline-none cursor-pointer" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
                 {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}年度</option>)}
@@ -92,10 +92,10 @@ export default function Home() {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Beta</span>
-            <h2 className="text-sm font-bold text-blue-900">SFC修行トラッカーをご利用いただきありがとうございます！</h2>
+            <h2 className="text-sm font-bold text-blue-900">飛行機ステータス修行用フライトログをご利用いただきありがとうございます！</h2>
           </div>
           <p className="text-xs text-blue-800/80 leading-relaxed">
-            当サイトは現在ベータ版として公開しております。2026年のSFC解脱を目指す修行僧の皆様のお役に立てるよう、今後も機能拡張のアップデートをどんどん行っていきます！個人開発で運営しておりますので、よろしければSNS等でシェアして応援していただけると開発の励みになります。よろしくお願いいたします🙇‍♂️
+            当サイトは現在ベータ版として公開しております。ANAすべての修行僧の皆様のお役に立てるよう、今後も機能拡張のアップデートをどんどん行っていきます！もちろん、JAL修行僧のためのサイトも作成予定です！個人開発で運営しておりますので、よろしければSNS等でシェアして応援していただけると開発の励みになります。よろしくお願いいたします🙇‍♂️
           </p>
         </div>
 
