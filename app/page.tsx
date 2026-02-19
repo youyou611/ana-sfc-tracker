@@ -12,9 +12,6 @@ export default function Home() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ date: string; price: number; pp: number }>({ date: "", price: 0, pp: 0 });
 
-  const [amount, setAmount] = useState<number>(1000);
-  const [shop, setShop] = useState<string>("yoshinoya");
-
   const targetOptions: { [key: string]: { label: string, pp: number } } = {
     bronze_ls: { label: "ブロンズ (LS)", pp: 15000 },
     bronze_std: { label: "ブロンズ (通常)", pp: 30000 },
@@ -65,21 +62,6 @@ export default function Home() {
     setEditingId(null);
   };
 
-  const getPaymentStrategy = (shopName: string, price: number) => {
-    let method = "";
-    let miles = 0;
-    switch (shopName) {
-      case "yoshinoya": method = "Olive (スマホタッチ決済)"; miles = price * 0.035; break;
-      case "yayoiken":
-      case "rairaitei": method = "楽天ペイ"; miles = price * 0.0075; break;
-      case "train": method = "ICOCA / VISA（割引時）"; miles = price * 0.005; break;
-      default: method = "メインカード"; miles = price * 0.005;
-    }
-    return { method, miles: Math.floor(miles) };
-  };
-
-  const { method, miles } = getPaymentStrategy(shop, amount);
-
   const currentYearLogs = flightLogs.filter(log => log.year === selectedYear).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const currentPP = currentYearLogs.reduce((sum, log) => sum + log.pp, 0);
   const currentSpent = currentYearLogs.reduce((sum, log) => sum + log.price, 0);
@@ -93,12 +75,12 @@ export default function Home() {
         
         <header className="flex flex-col md:flex-row md:justify-between md:items-end border-b border-slate-200 pb-4 gap-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#003184]">SFC修行 総合ダッシュボード</h1>
+            <h1 className="text-xl font-bold tracking-tight text-[#003184]">SFC修行 ダッシュボード</h1>
             <div className="flex items-center gap-2 mt-2">
               <select className="bg-slate-200 border-none text-xs font-bold text-slate-600 rounded px-2 py-1 outline-none cursor-pointer" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
                 {[2024, 2025, 2026, 2027, 2028].map(y => <option key={y} value={y}>{y}年度</option>)}
               </select>
-              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest ml-2">Flight Log & Mile Optimizer</span>
+              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-widest ml-2">Flight Log</span>
             </div>
           </div>
           <Link href="/flight" className="inline-flex items-center px-6 py-2 bg-[#003184] hover:bg-blue-800 text-white text-xs font-bold rounded shadow-sm transition-colors">
@@ -106,77 +88,50 @@ export default function Home() {
           </Link>
         </header>
 
-        {/* 【新規】ご挨拶＆ベータ版アナウンス */}
+        {/* ご挨拶＆ベータ版アナウンス */}
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 shadow-sm">
           <div className="flex items-center gap-2 mb-2">
             <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">Beta</span>
             <h2 className="text-sm font-bold text-blue-900">SFC修行トラッカーをご利用いただきありがとうございます！</h2>
           </div>
           <p className="text-xs text-blue-800/80 leading-relaxed">
-            当サイトは現在ベータ版として公開しております。2026年のSFC解脱を目指す修行僧の皆様のお役に立てるよう、今後も機能拡張やマイル計算のアップデートをどんどん行っていきます！個人開発で運営しておりますので、よろしければSNS等でシェアして応援していただけると開発の励みになります。よろしくお願いいたします🙇‍♂️
+            当サイトは現在ベータ版として公開しております。2026年のSFC解脱を目指す修行僧の皆様のお役に立てるよう、今後も機能拡張のアップデートをどんどん行っていきます！個人開発で運営しておりますので、よろしければSNS等でシェアして応援していただけると開発の励みになります。よろしくお願いいたします🙇‍♂️
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+        <div className="space-y-6">
           
-          <div className="md:col-span-8 bg-white rounded-xl p-6 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
+          {/* 修行進捗パネル（全幅に変更） */}
+          <div className="bg-white rounded-xl p-6 md:p-8 border border-slate-200 shadow-sm relative overflow-hidden flex flex-col justify-between">
             <div className="absolute top-0 right-0 p-4 text-slate-50 font-black text-8xl pointer-events-none select-none">{selectedYear}</div>
-            <div className="relative z-10">
-              <label className="text-[9px] text-slate-400 font-bold uppercase block mb-1">現在のプレミアムポイント</label>
+            <div className="relative z-10 w-full md:w-2/3">
+              <label className="text-[10px] text-slate-400 font-bold uppercase block mb-2">現在のプレミアムポイント</label>
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl font-black text-[#003184] tracking-tighter">{currentPP.toLocaleString()}</span>
-                <span className="text-lg font-bold text-slate-300">/ {targetPP.toLocaleString()} PP</span>
+                <span className="text-xl font-bold text-slate-300">/ {targetPP.toLocaleString()} PP</span>
               </div>
-              <div className="w-full bg-slate-100 rounded-full h-2.5 mt-4 overflow-hidden shadow-inner">
+              <div className="w-full bg-slate-100 rounded-full h-3 mt-5 overflow-hidden shadow-inner">
                 <div className="bg-gradient-to-r from-blue-600 to-cyan-400 h-full transition-all duration-1000" style={{ width: `${progressPercent}%` }}></div>
               </div>
-              <p className="text-[10px] font-bold text-[#003184] mt-2 tracking-tight">達成率: {progressPercent.toFixed(1)}%</p>
+              <p className="text-[11px] font-bold text-[#003184] mt-2 tracking-tight">達成率: {progressPercent.toFixed(1)}%</p>
             </div>
 
-            <div className="mt-8 pt-6 border-t border-slate-50 grid grid-cols-2 gap-4 relative z-10">
-              <div>
-                <label className="text-[9px] text-slate-400 font-bold uppercase block mb-1">目標ステータス</label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded p-2 text-xs font-bold text-slate-700 outline-none" value={targetType} onChange={(e) => handleTargetChange(e.target.value)}>
+            <div className="mt-8 pt-6 border-t border-slate-50 flex flex-col md:flex-row gap-6 relative z-10 w-full">
+              <div className="flex-1">
+                <label className="text-[10px] text-slate-400 font-bold uppercase block mb-2">目標ステータス</label>
+                <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold text-slate-700 outline-none" value={targetType} onChange={(e) => handleTargetChange(e.target.value)}>
                   {Object.keys(targetOptions).map(k => <option key={k} value={k}>{targetOptions[k].label}</option>)}
                 </select>
               </div>
-              <div className="bg-slate-50 p-2 rounded border border-slate-100">
-                <label className="text-[9px] text-slate-400 font-bold uppercase block mb-0.5">平均PP単価 / 累計</label>
-                <p className="text-sm font-bold text-slate-700 tracking-tight">¥ {avgPPPrice} <span className="text-[10px] font-normal text-slate-400 ml-1">(¥{currentSpent.toLocaleString()})</span></p>
+              <div className="flex-1 bg-slate-50 p-4 rounded-lg border border-slate-100">
+                <label className="text-[10px] text-slate-400 font-bold uppercase block mb-1">平均PP単価 / 累計</label>
+                <p className="text-lg font-bold text-slate-700 tracking-tight">¥ {avgPPPrice} <span className="text-[11px] font-normal text-slate-400 ml-2">(¥{currentSpent.toLocaleString()})</span></p>
               </div>
             </div>
           </div>
 
-          <div className="md:col-span-4 bg-[#003184] text-white rounded-xl p-6 shadow-xl border border-blue-900 flex flex-col justify-between">
-            <h2 className="text-xs font-black mb-4 flex items-center gap-2 tracking-widest uppercase text-cyan-400">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-              Mile Optimizer
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="text-[9px] font-bold text-blue-300 uppercase block mb-1">決済金額 (JPY)</label>
-                <input type="number" value={amount} onChange={(e) => setAmount(Number(e.target.value))} className="w-full bg-blue-900/50 border border-blue-700 rounded-lg p-2.5 text-sm font-bold outline-none focus:ring-1 focus:ring-cyan-400 transition-all" />
-              </div>
-              <div>
-                <label className="text-[9px] font-bold text-blue-300 uppercase block mb-1">利用店舗</label>
-                <select value={shop} onChange={(e) => setShop(e.target.value)} className="w-full bg-blue-900/50 border border-blue-700 rounded-lg p-2.5 text-sm font-bold outline-none cursor-pointer">
-                  <option value="yoshinoya">吉野家</option>
-                  <option value="yayoiken">やよい軒</option>
-                  <option value="rairaitei">来来亭</option>
-                  <option value="train">鉄道乗車券</option>
-                </select>
-              </div>
-              <div className="pt-4 border-t border-blue-800/50">
-                <p className="text-[10px] text-blue-300 font-bold mb-1">{method}</p>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-3xl font-black text-cyan-300 tracking-tighter">{miles.toLocaleString()}</span>
-                  <span className="text-xs font-bold text-blue-200">ANAマイル</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="md:col-span-12">
+          {/* フライト履歴 */}
+          <div>
              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
                <span className="w-1.5 h-1.5 rounded-full bg-[#003184] mr-2"></span>Recent Flight History
              </h2>
@@ -187,33 +142,35 @@ export default function Home() {
                   currentYearLogs.map(log => (
                     <div key={log.id} className="p-4 md:px-6 flex justify-between items-center group hover:bg-slate-50 transition-colors">
                       {editingId === log.id ? (
-                        <div className="flex gap-4 items-end w-full bg-blue-50 p-2 rounded">
-                          <div className="flex-1"><label className="text-[8px] block">搭乗日</label><input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="w-full p-1 text-xs border" /></div>
-                          <div className="w-20"><label className="text-[8px] block">獲得PP</label><input type="number" value={editForm.pp} onChange={e => setEditForm({...editForm, pp: Number(e.target.value)})} className="w-full p-1 text-xs border" /></div>
-                          <button onClick={saveEdit} className="px-3 py-1 bg-blue-600 text-white text-xs rounded">保存</button>
-                          <button onClick={() => setEditingId(null)} className="px-3 py-1 bg-slate-200 text-xs rounded">戻る</button>
+                        <div className="flex gap-4 items-end w-full bg-blue-50 p-3 rounded">
+                          <div className="flex-1"><label className="text-[10px] font-bold block mb-1">搭乗日</label><input type="date" value={editForm.date} onChange={e => setEditForm({...editForm, date: e.target.value})} className="w-full p-2 text-sm border rounded" /></div>
+                          <div className="w-24"><label className="text-[10px] font-bold block mb-1">獲得PP</label><input type="number" value={editForm.pp} onChange={e => setEditForm({...editForm, pp: Number(e.target.value)})} className="w-full p-2 text-sm border rounded" /></div>
+                          <div className="flex gap-2 mb-1">
+                            <button onClick={saveEdit} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded">保存</button>
+                            <button onClick={() => setEditingId(null)} className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded">戻る</button>
+                          </div>
                         </div>
                       ) : (
                         <>
                           <div className="flex items-center gap-4">
-                            <div className="bg-slate-100 p-1.5 rounded text-center min-w-[3rem]">
-                              <p className="text-[8px] font-bold text-slate-400 uppercase">{log.date.split('-')[1]}月</p>
-                              <p className="text-base font-black text-slate-700 leading-none">{log.date.split('-')[2]}</p>
+                            <div className="bg-slate-100 p-2 rounded text-center min-w-[3.5rem]">
+                              <p className="text-[9px] font-bold text-slate-500 uppercase">{log.date.split('-')[1]}月</p>
+                              <p className="text-xl font-black text-slate-800 leading-none">{log.date.split('-')[2]}</p>
                             </div>
                             <div>
-                              <p className="text-sm font-black text-slate-800 tracking-tight">{log.origin} → {log.destination}</p>
-                              <p className="text-[9px] text-slate-400 font-bold uppercase">{log.date}</p>
+                              <p className="text-base font-black text-slate-800 tracking-tight">{log.origin} → {log.destination}</p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">{log.date}</p>
                             </div>
                           </div>
                           <div className="flex gap-6 items-center">
                             <div className="text-right">
-                              <p className="text-[9px] text-slate-400 font-bold uppercase">Points</p>
-                              <p className="text-sm font-black text-[#003184]">{log.pp.toLocaleString()} <span className="text-[8px] font-normal">PP</span></p>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">Points</p>
+                              <p className="text-base font-black text-[#003184]">{log.pp.toLocaleString()} <span className="text-[9px] font-normal">PP</span></p>
                             </div>
-                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                              <button onClick={() => copyLog(log)} className="p-2 text-blue-400 hover:bg-blue-50 rounded-lg" title="複製"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
-                              <button onClick={() => startEdit(log)} className="p-2 text-slate-400 hover:bg-slate-50 rounded-lg" title="編集"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
-                              <button onClick={() => deleteLog(log.id)} className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg" title="削除"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                            <div className="flex gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
+                              <button onClick={() => copyLog(log)} className="p-2 text-blue-500 hover:bg-blue-100 rounded-lg bg-blue-50/50" title="複製"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" /></svg></button>
+                              <button onClick={() => startEdit(log)} className="p-2 text-slate-500 hover:bg-slate-200 rounded-lg bg-slate-100" title="編集"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg></button>
+                              <button onClick={() => deleteLog(log.id)} className="p-2 text-red-400 hover:bg-red-100 hover:text-red-600 rounded-lg bg-red-50/50" title="削除"><svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                             </div>
                           </div>
                         </>
@@ -224,8 +181,8 @@ export default function Home() {
              </div>
           </div>
 
-          {/* 【新規】更新履歴 */}
-          <div className="md:col-span-12 mt-4">
+          {/* 更新履歴 */}
+          <div className="mt-4">
              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center">
                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2"></span>Update History
              </h2>
@@ -237,10 +194,9 @@ export default function Home() {
                     </div>
                     <div className="flex-1">
                       <p className="text-sm font-bold text-slate-700">SFC修行トラッカー サイト開設 🚀</p>
-                      <p className="text-xs text-slate-500 mt-1">ベータ版としてダッシュボード、フライトPP計算機、マイル最適化ツールを公開しました。</p>
+                      <p className="text-xs text-slate-500 mt-1">ベータ版としてダッシュボード、フライトPP計算機を公開しました。</p>
                     </div>
                   </li>
-                  {/* 今後アップデートしたら、ここに <li>...</li> を追加していけばOKです！ */}
                 </ul>
              </div>
           </div>
