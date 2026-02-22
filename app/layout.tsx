@@ -14,6 +14,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ja">
+      {/* ↓↓↓ ここにGoogle AdSenseのコードを追加しました！ ↓↓↓ */}
+      <head>
+        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7337147183489280" crossOrigin="anonymous"></script>
+      </head>
+      {/* ↑↑↑ ここまで ↑↑↑ */}
+
       <body className="bg-slate-50 flex min-h-screen font-sans">
         
         {/* Gemini風 ホバーで開くサイドバー */}
@@ -69,7 +75,6 @@ export default function RootLayout({
         </nav>
 
         {/* 右側：メインコンテンツ */}
-        {/* サイドバーが閉じている時(16px=4rem)の幅分だけ margin-left を開ける */}
         <main className="flex-1 ml-16 w-full relative">
           {children}
         </main>
