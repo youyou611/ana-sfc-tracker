@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+// 空港データの定義
 const airports = [
   { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" },
   { code: "ITM", name: "大阪(伊丹)" }, { code: "KIX", name: "大阪(関西)" }, { code: "UKB", name: "神戸" },
@@ -25,6 +26,7 @@ const airports = [
   { code: "TSJ", name: "対馬" }
 ];
 
+// 空港選択コンポーネント
 const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false }: { label: string, value: string, onChange: (val: string) => void, allowEmpty?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -77,7 +79,7 @@ export default function FlightCalculator() {
   
   const [tripType, setTripType] = useState<"oneway" | "roundtrip">("oneway");
   const [date, setDate] = useState(today);
-  const [returnDate, setReturnDate] = useState(today); // 初期値を今日に
+  const [returnDate, setReturnDate] = useState(today);
   
   const [isNewFare, setIsNewFare] = useState(false); 
   const [origin, setOrigin] = useState("ITM");
@@ -89,9 +91,9 @@ export default function FlightCalculator() {
   const [boardingBonus, setBoardingBonus] = useState(200);
   const [ticketPrice, setTicketPrice] = useState(25000);
 
-  // 復路カレンダーを自動で開くための参照
   const returnDateRef = useRef<HTMLInputElement>(null);
 
+  // 簡易マイレージテーブル
   const mileageTable: { [key: string]: { [key: string]: number } } = {
     HND: { OKA: 984, ISG: 1095, CTS: 510, FUK: 567, ITM: 280, KIX: 280, NGO: 193, KOJ: 601, KMJ: 565, NGS: 610, MYJ: 438, TAK: 354, HIJ: 414, TOY: 176, KMQ: 211, HKD: 424, AKJ: 576 },
     ITM: { OKA: 739, ISG: 869, CTS: 666, HND: 280, FUK: 282, KOJ: 329, KMJ: 295, NGS: 334, MYJ: 159, KIJ: 246, SDJ: 315, HKD: 536, AKJ: 672 },
@@ -102,14 +104,17 @@ export default function FlightCalculator() {
     FUK: { HND: 567, OKA: 537, CTS: 882, ITM: 282, NGO: 374, SDJ: 665, KIJ: 521, KMQ: 414 }
   };
 
+  const getDistance = (from: string, to: string) => mileageTable[from]?.[to] || mileageTable[to]?.[from] || 0;
+
+  // 正しい運賃定義に修正
   const fareTypes: { [key: string]: { label: string, rate: number, bonus: number } } = isNewFare ? {
-    "flex": { label: "フレックス (100%)", rate: 1.0, bonus: 400 },
-    "standard": { label: "スタンダード (80%)", rate: 0.8, bonus: 0 },
-    "simple": { label: "シンプル (70%)", rate: 0.7, bonus: 0 },
-    "sale": { label: "セール (50%)", rate: 0.5, bonus: 0 },
-    "p_flex": { label: "プレミアム フレックス (150%)", rate: 1.5, bonus: 400 },
-    "p_standard": { label: "プレミアム スタンダード (130%)", rate: 1.3, bonus: 400 },
-    "p_simple": { label: "プレミアム シンプル (120%)", rate: 1.2, bonus: 400 },
+    "flex": { label: "フレックス / 運賃1 (100%)", rate: 1.0, bonus: 400 },
+    "value": { label: "バリュー / 運賃2 (75%)", rate: 0.75, bonus: 400 },
+    "value_transit": { label: "バリュートランジット / 運賃6 (75%)", rate: 0.75, bonus: 200 },
+    "super_value": { label: "スーパーバリュー / 運賃7 (75%)", rate: 0.75, bonus: 0 },
+    "sale": { label: "セール / 運賃8 (50%)", rate: 0.5, bonus: 0 },
+    "p_flex": { label: "プレミアム運賃 (150%)", rate: 1.5, bonus: 400 },
+    "p_value": { label: "プレミアムバリュー (125%)", rate: 1.25, bonus: 400 },
   } : {
     "old_fare1_3": { label: "運賃1〜3 (プレミアム等 125%)", rate: 1.25, bonus: 400 },
     "old_fare4": { label: "運賃4 (ANA FLEX等 100%)", rate: 1.0, bonus: 400 },
@@ -119,32 +124,40 @@ export default function FlightCalculator() {
     "old_fare8": { label: "運賃8 (SV SALE等 50%)", rate: 0.5, bonus: 0 },
   };
 
-  const getDistance = (from: string, to: string) => mileageTable[from]?.[to] || mileageTable[to]?.[from] || 0;
-
   useEffect(() => {
     const calcDist = via ? getDistance(origin, via) + getDistance(via, destination) : getDistance(origin, destination);
     setManualDistance(calcDist);
   }, [origin, via, destination]);
 
   useEffect(() => {
-    const defaultKey = isNewFare ? "simple" : "old_fare7";
+    // デフォルトの運賃設定
+    const defaultKey = isNewFare ? "super_value" : "old_fare7";
     const fare = fareTypes[fareKey] || fareTypes[defaultKey];
     setBoardingBonus(fare?.bonus || 0);
   }, [fareKey, isNewFare]);
 
+  // PP計算ロジック（修正済）
   const calculateBasePP = () => {
-    const defaultKey = isNewFare ? "simple" : "old_fare7";
+    const defaultKey = isNewFare ? "super_value" : "old_fare7";
     const fare = fareTypes[fareKey] || fareTypes[defaultKey];
     
     const dist1 = getDistance(origin, via);
     const dist2 = getDistance(via, destination);
-    const isAutoCalculated = manualDistance === (via ? dist1 + dist2 : getDistance(origin, destination));
-
-    if (via && isAutoCalculated) {
-      const pp1 = (Math.floor(dist1 * fare.rate) * 2) + boardingBonus;
-      const pp2 = (Math.floor(dist2 * fare.rate) * 2) + boardingBonus;
-      return pp1 + pp2;
+    
+    // 経由地ありの場合
+    if (via) {
+      // 自動計算と一致する場合（区間ごとに端数処理をして合計）
+      if (manualDistance === dist1 + dist2) {
+        const pp1 = (Math.floor(dist1 * fare.rate) * 2) + boardingBonus;
+        const pp2 = (Math.floor(dist2 * fare.rate) * 2) + boardingBonus;
+        return pp1 + pp2;
+      } else {
+        // 距離を手動変更したが、経由地が設定されている場合
+        // マイレージ全体に倍率を掛け、ボーナスは2区間分加算する
+        return (Math.floor(manualDistance * fare.rate) * 2) + (boardingBonus * 2);
+      }
     } else {
+      // 直行便
       return (Math.floor(manualDistance * fare.rate) * 2) + boardingBonus;
     }
   };
@@ -153,8 +166,8 @@ export default function FlightCalculator() {
   const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
   const ppUnitPrice = totalPP > 0 ? (ticketPrice / totalPP).toFixed(1) : "0.0";
 
-  const switchToOldFare = () => { setIsNewFare(false); setFareKey("old_fare6"); };
-  const switchToNewFare = () => { setIsNewFare(true); setFareKey("simple"); };
+  const switchToOldFare = () => { setIsNewFare(false); setFareKey("old_fare7"); };
+  const switchToNewFare = () => { setIsNewFare(true); setFareKey("super_value"); };
 
   const handleSwapRoute = () => {
     const tempOrigin = origin;
@@ -162,21 +175,16 @@ export default function FlightCalculator() {
     setDestination(tempOrigin);
   };
 
-  // ★ 行きの日付を変更した時のスペシャル挙動
   const handleOutboundDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     setDate(newDate);
     
     if (tripType === "roundtrip") {
-      // 1. 帰りの日付を「行きと同じ日」にセットする（カーソルを合わせる準備）
       setReturnDate(newDate);
-      
-      // 2. スマホやPCのカレンダーUIを自動で開く
       setTimeout(() => {
         if (returnDateRef.current) {
           returnDateRef.current.focus();
           try {
-            // モダンブラウザのみ対応の showPicker でカレンダーを強制展開
             if ('showPicker' in HTMLInputElement.prototype) {
               returnDateRef.current.showPicker();
             }
@@ -268,7 +276,6 @@ export default function FlightCalculator() {
                 <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider text-[#003184]">
                   {tripType === "roundtrip" ? "往路 (行き) 搭乗日" : "搭乗予定日"}
                 </label>
-                {/* ★ 行きの日付変更で handleOutboundDateChange を発火 */}
                 <input 
                   type="date" 
                   className="w-full bg-blue-50/50 border border-blue-200 rounded-lg p-3 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none text-[#003184] transition-all cursor-pointer" 
@@ -280,7 +287,6 @@ export default function FlightCalculator() {
               {tripType === "roundtrip" && (
                 <div className="flex-1">
                   <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider text-[#003184]">復路 (帰り) 搭乗日</label>
-                  {/* ★ refを追加 */}
                   <input 
                     type="date" 
                     ref={returnDateRef}
@@ -372,7 +378,7 @@ export default function FlightCalculator() {
                     </>
                   ) : (
                     <>
-                      ({Math.floor(manualDistance * (fareTypes[fareKey]?.rate || 0))} × 2) ＋ <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
+                      ({Math.floor(manualDistance * (fareTypes[fareKey]?.rate || 0))} × 2) ＋ <span className="text-yellow-300 font-bold">{via ? boardingBonus * 2 : boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
                     </>
                   )}
                   <p className="mt-1 text-blue-300/50 text-[9px]">※(マイル×積算率)で切捨て後、2倍してボーナスを加算</p>
