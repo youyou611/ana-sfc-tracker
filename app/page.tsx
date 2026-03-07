@@ -11,6 +11,9 @@ export default function Home() {
   const [targetType, setTargetType] = useState<string>("platinum_std");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{ date: string; price: number; pp: number }>({ date: "", price: 0, pp: 0 });
+  
+  // ★ AdSense対策用：アコーディオン開閉ステートを追加
+  const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
 
   const targetOptions: { [key: string]: { label: string, pp: number } } = {
     bronze_ls: { label: "ブロンズ (LS)", pp: 15000 },
@@ -234,6 +237,71 @@ export default function Home() {
                 </ul>
              </div>
           </div>
+
+          {/* ★ AdSense対策用：SFC修行・ツール解説エリア（アコーディオン） */}
+          <div className="mt-12 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+            <button 
+              onClick={() => setIsGuideOpen(!isGuideOpen)}
+              className="w-full flex items-center justify-between p-4 md:p-6 bg-slate-50/50 hover:bg-slate-100 transition-colors text-left focus:outline-none"
+            >
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 text-[#003184] p-2 rounded-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-700">SFC修行とプレミアムポイント(PP)の基礎知識</h3>
+                  <p className="text-[10px] text-slate-400 mt-0.5">当ダッシュボードの使い方・PP単価の計算・ステータス到達の目安</p>
+                </div>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isGuideOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+            </button>
+            
+            <div className={`transition-all duration-500 ease-in-out ${isGuideOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
+              <div className="p-6 md:p-8 border-t border-slate-100 text-xs md:text-sm text-slate-600 leading-relaxed space-y-6">
+                <section>
+                  <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">SFC修行とは？ANAスーパーフライヤーズカード取得への道</h4>
+                  <p>
+                    SFC（スーパーフライヤーズカード）とは、ANA（全日本空輸）の上級会員資格である「プラチナサービス」メンバー以上に到達した人のみが申し込める、特別なクレジットカードです。一度発行してしまえば、年会費を払い続ける限り「一生涯ANAの上級会員（スターアライアンス・ゴールドメンバー）」としての特権（優先搭乗、専用保安検査場の利用、ANAラウンジの無料利用、手荷物受け取りの優先など）を享受できるため、航空ファンや出張族、旅行好きの間で非常に高い人気を誇ります。このSFCを取得するために、短期間に飛行機に何度も搭乗して「プレミアムポイント（PP）」を貯める活動のことを、修行僧になぞらえて「SFC修行」と呼びます。
+                  </p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">プレミアムポイント（PP）の仕組みと計算方法</h4>
+                  <p>
+                    ANAのステータスを獲得するための指標となるのが「プレミアムポイント（PP）」です。これは通常の特典航空券に交換できる「マイル」とは全く異なるポイントシステムで、飛行機に有償で搭乗した場合にのみ付与されます（マイルを使った特典航空券での搭乗は付与対象外です）。<br/><br/>
+                    PPの基本的な計算式は<strong>「区間基本マイレージ × 予約クラス・運賃種別ごとの積算率 × 路線倍率 ＋ 搭乗ポイント」</strong>となっています。路線倍率は、国内線が2倍、アジア・オセアニア路線が1.5倍、その他の国際線が1倍と定められており、国内線の方がPPを効率よく稼ぎやすいという特徴があります。ステータスの獲得には、ブロンズで30,000PP、プラチナ（SFC申込ライン）で50,000PP、ダイヤモンドで100,000PPがそれぞれ必要になります。
+                  </p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">PP単価とは？修行僧が重視する最重要指標</h4>
+                  <p>
+                    SFC修行を行う上で最も重要視されるのが「PP単価」です。これは「1プレミアムポイントを獲得するために、いくらの航空券代（費用）がかかったか」を表す指標で、<strong>「航空券代 ÷ 獲得PP」</strong>で計算されます。<br/><br/>
+                    一般的に、PP単価が10円を下回れば「効率の良いルート」、7〜8円台であれば「非常に優秀なルート」とされています。50,000PPを獲得してプラチナステータスに到達するためには、PP単価10円なら総費用50万円、PP単価8円なら総費用40万円となり、PP単価をいかに下げるかが修行全体の総コストを大きく左右します。羽田〜那覇や、伊丹〜那覇〜石垣などの長距離国内線が修行僧に好まれるのは、このPP単価を抑えやすいためです。
+                  </p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">当ダッシュボード（SFC修行トラッカー）の活用方法</h4>
+                  <p>
+                    当サイトは、SFC修行僧が自身のフライト予定と獲得PPを正確かつ視覚的に管理できるよう設計された専用ダッシュボードです。<br/><br/>
+                    1. <strong>目標設定と進捗管理:</strong> 目標ステータス（プラチナ、ダイヤモンド、LS条件など）を選択すると、現在までの獲得PPと達成率がプログレスバーで分かりやすく表示されます。<br/>
+                    2. <strong>PP単価の自動計算:</strong> 登録された航空券代から「平均PP単価」と「総費用（累計）」を自動で算出し、予算管理を強力にサポートします。<br/>
+                    3. <strong>フライトログの記録:</strong> 「フライトを登録」ボタンから専用の計算機を開き、出発地・経由地・到着地と運賃種別を選ぶだけで、自動的に獲得予定のPPが計算され、ダッシュボードに反映・保存されます。
+                  </p>
+                </section>
+
+                <section>
+                  <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">2026年以降のSFC修行トレンドと注意点</h4>
+                  <p>
+                    航空会社の運賃体系やPPの積算ルールは年々変化しています。近年では、特定のセール運賃（ANA SUPER VALUE SALEなど）のPP積算率が50%に引き下げられたり、搭乗ポイント（400PP）が付与されないケースが増えるなど、修行の難易度やルールは細かく変化しています。<br/><br/>
+                    一方で、「バリュートランジット（乗継割引運賃）」を活用した1回の搭乗でのPP底上げや、ライフソリューションサービス（LS）利用による到達条件の緩和など、新しい選択肢も増えています。本トラッカーを継続的に活用して緻密なフライトスケジュールを組み立て、PP単価を抑えながら無駄のないSFC取得を目指しましょう。
+                  </p>
+                </section>
+              </div>
+            </div>
+          </div>
+          {/* ★ AdSense対策エリア ここまで */}
 
         </div>
       </div>
