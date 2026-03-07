@@ -87,10 +87,12 @@ export default function FlightCalculator() {
   const [destination, setDestination] = useState("ISG");
   
   const [manualDistance, setManualDistance] = useState<number>(0); 
-  // デフォルト運賃をプレミアム系にしやすいよう調整
   const [fareKey, setFareKey] = useState("p_simple"); 
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
+
+  // ★ AdSense対策用：アコーディオン開閉ステートを追加
+  const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
 
   const returnDateRef = useRef<HTMLInputElement>(null);
 
@@ -146,11 +148,6 @@ export default function FlightCalculator() {
     const dist1 = getDistance(origin, via);
     const dist2 = getDistance(via, destination);
     
-    // 計算ロジック変更:
-    // 従来: floor(マイル * 倍率) * 2  → 2172PP (1足りない)
-    // 修正: floor(マイル * 倍率 * 2)  → 2173PP (正解)
-    // ※ANA国内線は一律2倍のため、先に2倍してから端数処理を行うことで整合します
-
     if (via) {
       if (manualDistance === dist1 + dist2) {
         // 区間ごとに計算
@@ -396,8 +393,64 @@ export default function FlightCalculator() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </button>
           </div>
-          
         </div>
+
+        {/* ★ AdSense対策用：SFC修行シミュレーター解説エリア（アコーディオン） */}
+        <div className="mt-8 bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <button 
+            onClick={() => setIsGuideOpen(!isGuideOpen)}
+            className="w-full flex items-center justify-between p-4 md:p-6 bg-slate-50/50 hover:bg-slate-100 transition-colors text-left focus:outline-none"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-blue-100 text-[#003184] p-2 rounded-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-700">SFC修行・プレミアムポイント(PP) シミュレーターの使い方</h3>
+                <p className="text-[10px] text-slate-400 mt-0.5">PP単価の計算・運賃種別の選び方・乗継便（バリュートランジット）の活用法</p>
+              </div>
+            </div>
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 text-slate-400 transition-transform duration-300 ${isGuideOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+          </button>
+          
+          <div className={`transition-all duration-500 ease-in-out ${isGuideOpen ? "max-h-[2000px] opacity-100" : "max-h-0 opacity-0"}`}>
+            <div className="p-6 md:p-8 border-t border-slate-100 text-xs md:text-sm text-slate-600 leading-relaxed space-y-6">
+              <section>
+                <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">プレミアムポイント（PP）シミュレーターの使い方</h4>
+                <p>
+                  当シミュレーターは、ANA（全日本空輸）の上級会員資格「プラチナステータス」および「スーパーフライヤーズカード（SFC）」の取得を目指す修行僧のために開発された、PP（プレミアムポイント）自動計算ツールです。<br/>
+                  出発地、到着地、経由地（任意）、および運賃種別を選択し、想定される航空券代を入力することで、実際のフライトで獲得できるPPと「PP単価（1PPあたりの取得費用）」を瞬時に算出します。片道だけでなく往復の同時計算にも対応しており、算出したデータはそのままダッシュボードの「Flight Log（フライト履歴）」に登録・一元管理することが可能です。
+                </p>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">プレミアムポイント（PP）の計算式と端数処理について</h4>
+                <p>
+                  ANA国内線におけるPPの基本的な計算式は<strong>「区間基本マイレージ × 運賃種別ごとの積算率 × 路線倍率（国内線は2倍） ＋ 搭乗ポイント（0〜400PP）」</strong>となります。<br/>
+                  当シミュレーターでは、ANA公式の計算ロジックに忠実に則り、「(区間マイル × 積算率 × 2倍) を計算した後に端数を切り捨て、最後に搭乗ポイントを加算する」という正確な処理を行っています。これにより、伊丹(ITM)〜那覇(OKA)〜石垣(ISG)のような経由便を利用した複雑なルーティングや、プレミアムクラス利用時の細かい計算でも、1PPのズレもなく正確なシミュレーションが可能です。
+                </p>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">新運賃体系とバリュートランジット（乗継運賃）の活用</h4>
+                <p>
+                  SFC修行において、PP単価を劇的に下げる強力な武器となるのが「バリュートランジット（運賃6）」などの乗継特割運賃です。例えば伊丹や羽田から石垣・宮古へ向かう際、直行便ではなくあえて那覇を経由することで、区間ごとのフライト距離を伸ばしつつ、各区間で「搭乗ポイント200PP」をダブルで獲得することができます。<br/>
+                  また、運賃体系の変更により、スーパーバリュー（75%）やセール運賃（50%）など、チケットの購入タイミングや種類によって積算率が大きく変動します。特にプレミアムクラスを利用する場合は、運賃種別（プレミアムバリュー、プレミアムシンプルなど）によって125%〜120%と細かく積算率が変わるため、予約前に当ツールで「どの運賃が最もPP単価が優れているか」を比較検討することを強くおすすめします。
+                </p>
+              </section>
+
+              <section>
+                <h4 className="font-bold text-[#003184] text-base mb-2 border-l-4 border-[#003184] pl-3">2026年以降のSFC修行とPP単価の目標ライン</h4>
+                <p>
+                  SFC修行を達成する（50,000PPに到達する）ための総費用は、この「PP単価」に直結します。一般的にPP単価が10円であれば総額50万円、8円であれば総額40万円がステータス獲得の目安となります。<br/>
+                  近年は各種セールの積算率引き下げや、ライフソリューションサービス（LS）を併用したステータス獲得条件など、ルール変更も多岐にわたります。いかに効率の良い路線を、積算率の高い運賃で、かつ安いタイミングで確保するかが鍵となります。当シミュレーターを活用して、PP単価7〜9円台の優秀なフライトを計画的に見つけ出し、無理のないスケジュールで解脱（ステータス達成）を目指しましょう。
+                </p>
+              </section>
+            </div>
+          </div>
+        </div>
+        {/* ★ AdSense対策エリア ここまで */}
+
       </div>
     </div>
   );
