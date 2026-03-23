@@ -448,7 +448,7 @@ export default function FlightCalculator() {
                     </>
                   ) : (
                     <>
-                      floor({manualDistance} × {fareTypes[fareKey]?.rate} × 2) ＋ <span className="text-yellow-300 font-bold">{via ? boardingBonus * 2 : boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
+                      ({manualDistance} × {fareTypes[fareKey]?.rate} × 2) ＋ <span className="text-yellow-300 font-bold">{via ? boardingBonus * 2 : boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
                     </>
                   )}
                   <p className="mt-1 text-blue-300/50 text-[9px]">※(マイル×倍率×2倍)で端数切り捨て後、ボーナスを加算</p>
