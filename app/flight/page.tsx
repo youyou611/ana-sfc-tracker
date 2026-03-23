@@ -442,8 +442,8 @@ export default function FlightCalculator() {
                   <span className="text-blue-300 font-bold block mb-1">【片道分の内訳】</span>
                   {via && manualDistance === getDistance(origin, via) + getDistance(via, destination) ? (
                     <>
-                      区間①: floor({getDistance(origin, via)} × {fareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDistance(origin, via) * (fareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
-                      区間②: floor({getDistance(via, destination)} × {fareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDistance(via, destination) * (fareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
+                      区間①: ({getDistance(origin, via)} × {fareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDistance(origin, via) * (fareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
+                      区間②: ({getDistance(via, destination)} × {fareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDistance(via, destination) * (fareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
                       片道合計: <span className="text-white font-bold">{basePP} PP</span>
                     </>
                   ) : (
