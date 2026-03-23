@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-// 空港データの定義
-const airports = [
+// --- 空港データの定義 ---
+const domAirports = [
   { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" },
   { code: "ITM", name: "大阪(伊丹)" }, { code: "KIX", name: "大阪(関西)" }, { code: "UKB", name: "神戸" },
   { code: "NGO", name: "名古屋(中部)" }, { code: "CTS", name: "札幌(新千歳)" },
@@ -26,13 +26,40 @@ const airports = [
   { code: "TSJ", name: "対馬" }
 ];
 
-// 空港選択コンポーネント
-const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false }: { label: string, value: string, onChange: (val: string) => void, allowEmpty?: boolean }) => {
+const intlAirports = [
+  // 主要ハブ
+  { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" },
+  // アジア・オセアニア (路線倍率 1.5倍)
+  { code: "SIN", name: "シンガポール" }, { code: "KUL", name: "クアラルンプール" },
+  { code: "BKK", name: "バンコク" }, { code: "SYD", name: "シドニー" },
+  { code: "CGK", name: "クアラルンプール" }, { code: "SGN", name: "ジャカルタ" },
+  { code: "HAN", name: "ホーチミン" }, { code: "TPE", name: "台北(桃園)" },
+  { code: "TSA", name: "台北(松山)" }, { code: "HKG", name: "香港" },
+  { code: "GMP", name: "台北(松山)" }, { code: "ICN", name: "ソウル(仁川)" },
+  { code: "GMP", name: "ソウル(金浦)" }, { code: "PEK", name: "北京" },
+  { code: "PVG", name: "北京" }, { code: "SHA", name: "上海(浦東)" },
+  { code: "DEL", name: "デリー" }, { code: "BOM", name: "ムンバイ" },
+  { code: "PER", name: "パース" },
+  // ハワイ・北米・欧州・その他 (路線倍率 1.0倍)
+  { code: "HNL", name: "ホノルル" }, { code: "LAX", name: "ロサンゼルス" },
+  { code: "SFO", name: "サンフランシスコ" }, { code: "JFK", name: "ニューヨーク(JFK)" },
+  { code: "ORD", name: "サンフランシスコ" }, { code: "SEA", name: "シアトル" },
+  { code: "IAD", name: "シアトル" }, { code: "YVR", name: "シアトル" },
+  { code: "LHR", name: "ロンドン(ヒースロー)" }, { code: "CDG", name: "ロンドン(ヒースロー)" },
+  { code: "FRA", name: "フランクフルト" }, { code: "MUC", name: "ミュンヘン" },
+  { code: "VIE", name: "ミュンヘン" }, { code: "PAR", name: "パリ" },
+];
+
+const asiaOceaniaCodes = ["SIN", "KUL", "BKK", "SYD", "CGK", "SGN", "HAN", "TPE", "TSA", "HKG", "ICN", "GMP", "PEK", "PVG", "SHA", "DEL", "BOM", "PER"];
+
+// --- 共通コンポーネント ---
+const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, isIntl = false }: { label: string, value: string, onChange: (val: string) => void, allowEmpty?: boolean, isIntl?: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
   
-  const displayValue = value ? `${airports.find(a => a.code === value)?.name} (${value})` : "";
-  const filtered = airports.filter(a => a.name.includes(search) || a.code.toLowerCase().includes(search.toLowerCase()));
+  const targetAirports = isIntl ? intlAirports : domAirports;
+  const displayValue = value ? `${targetAirports.find(a => a.code === value)?.name || value} (${value})` : "";
+  const filtered = targetAirports.filter(a => a.name.includes(search) || a.code.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="relative w-full">
@@ -76,7 +103,11 @@ export default function FlightCalculator() {
   const router = useRouter();
   const today = new Date().toISOString().split('T')[0];
   
-  // 初期値の宣言（マウント前）
+  // --- 状態管理 ---
+  const [flightMode, setFlightMode] = useState<"domestic" | "international">("domestic");
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // 国内線用の状態
   const [tripType, setTripType] = useState<"oneway" | "roundtrip">("oneway");
   const [date, setDate] = useState(today);
   const [returnDate, setReturnDate] = useState(today);
@@ -87,24 +118,41 @@ export default function FlightCalculator() {
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
   const [isFirstClassOnly, setIsFirstClassOnly] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [manualDistance, setManualDistance] = useState<number>(0); 
 
-  // ★ 1. マウント時にlocalStorageから前回の状態を読み込む
+  // 国際線用の状態
+  const [intlOrigin, setIntlOrigin] = useState("HND");
+  const [intlDestination, setIntlDestination] = useState("SIN");
+  const [intlFareKey, setIntlFareKey] = useState("intl_eco_m");
+  const [intlManualDistance, setIntlManualDistance] = useState<number>(0);
+  const [intlTicketPrice, setIntlTicketPrice] = useState(100000);
+
+  const returnDateRef = useRef<HTMLInputElement>(null);
+  const isNewFare = new Date(date) >= new Date("2026-05-19");
+
+  // ★ localStorage 読み込み
   useEffect(() => {
     const savedState = localStorage.getItem("sfc_calculator_state");
     if (savedState) {
       try {
         const parsed = JSON.parse(savedState);
+        if (parsed.flightMode) setFlightMode(parsed.flightMode);
+        
         if (parsed.tripType) setTripType(parsed.tripType);
         if (parsed.date) setDate(parsed.date);
         if (parsed.returnDate) setReturnDate(parsed.returnDate);
         if (parsed.origin) setOrigin(parsed.origin);
-        if (parsed.via !== undefined) setVia(parsed.via); // 空文字（経由なし）も許容
+        if (parsed.via !== undefined) setVia(parsed.via);
         if (parsed.destination) setDestination(parsed.destination);
         if (parsed.fareKey) setFareKey(parsed.fareKey);
         if (parsed.boardingBonus !== undefined) setBoardingBonus(parsed.boardingBonus);
         if (parsed.ticketPrice !== undefined) setTicketPrice(parsed.ticketPrice);
         if (parsed.isFirstClassOnly !== undefined) setIsFirstClassOnly(parsed.isFirstClassOnly);
+
+        if (parsed.intlOrigin) setIntlOrigin(parsed.intlOrigin);
+        if (parsed.intlDestination) setIntlDestination(parsed.intlDestination);
+        if (parsed.intlFareKey) setIntlFareKey(parsed.intlFareKey);
+        if (parsed.intlTicketPrice !== undefined) setIntlTicketPrice(parsed.intlTicketPrice);
       } catch (e) {
         console.error("状態の復元に失敗しました", e);
       }
@@ -112,23 +160,20 @@ export default function FlightCalculator() {
     setIsLoaded(true);
   }, []);
 
-  // ★ 2. 状態が変化するたびにlocalStorageに保存する
+  // ★ localStorage 保存
   useEffect(() => {
     if (isLoaded) {
       const currentState = {
-        tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly
+        flightMode,
+        tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly,
+        intlOrigin, intlDestination, intlFareKey, intlTicketPrice
       };
       localStorage.setItem("sfc_calculator_state", JSON.stringify(currentState));
     }
-  }, [tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly, isLoaded]);
+  }, [flightMode, tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly, intlOrigin, intlDestination, intlFareKey, intlTicketPrice, isLoaded]);
 
-
-  const isNewFare = new Date(date) >= new Date("2026-05-19");
-  const [manualDistance, setManualDistance] = useState<number>(0); 
-  const returnDateRef = useRef<HTMLInputElement>(null);
-
-  // 簡易マイレージテーブル
-  const mileageTable: { [key: string]: { [key: string]: number } } = {
+  // --- 国内線マイレージテーブル ---
+  const domMileageTable: { [key: string]: { [key: string]: number } } = {
     HND: { OKA: 984, ISG: 1095, CTS: 510, FUK: 567, ITM: 280, KIX: 280, NGO: 193, KOJ: 601, KMJ: 565, NGS: 610, MYJ: 438, TAK: 354, HIJ: 414, TOY: 176, KMQ: 211, HKD: 424, AKJ: 576 },
     ITM: { OKA: 739, ISG: 869, CTS: 666, HND: 280, FUK: 282, KOJ: 329, KMJ: 295, NGS: 334, MYJ: 159, KIJ: 246, SDJ: 315, HKD: 536, AKJ: 672 },
     KIX: { OKA: 739, ISG: 1214, CTS: 666, HND: 280, MMY: 893 },
@@ -138,18 +183,17 @@ export default function FlightCalculator() {
     FUK: { HND: 567, OKA: 537, CTS: 882, ITM: 282, NGO: 374, SDJ: 665, KIJ: 521, KMQ: 414 }
   };
 
-  const getDistance = (from: string, to: string) => mileageTable[from]?.[to] || mileageTable[to]?.[from] || 0;
-
-  const getAvailableFareKeys = () =>
-    Object.keys(fareTypes).filter(k => fareTypes[k].classType === (isFirstClassOnly ? "first" : "economy"));
-
-  const getDefaultFareKey = () => {
-    const keys = getAvailableFareKeys();
-    if (keys.length > 0) return keys[0];
-    return isNewFare ? "p_c" : "old_fare7";
+  // --- 国際線マイレージテーブル (TPM) ---
+  const intlMileageTable: { [key: string]: { [key: string]: number } } = {
+    HND: { SIN: 3312, KUL: 3338, BKK: 2869, SYD: 4863, HNL: 3831, LAX: 5451, SFO: 5160, JFK: 6772, LHR: 6214, FRA: 5928, TPE: 1330, HKG: 1805, ICN: 758, PEK: 1313, DEL: 3655, PER: 4908, CGK: 3612 },
+    NRT: { SIN: 3324, KUL: 3350, BKK: 2881, SYD: 4858, HNL: 3819, LAX: 5451, SFO: 5124, JFK: 6723, LHR: 5974, FRA: 5854, TPE: 1356, HKG: 1842, ICN: 783, PEK: 1324, DEL: 3661, PER: 4920, CGK: 3624 },
   };
 
-  const fareTypes: { [key: string]: { label: string, rate: number, bonus: number, classType: "first" | "economy" } } = isNewFare ? {
+  const getDomDistance = (from: string, to: string) => domMileageTable[from]?.[to] || domMileageTable[to]?.[from] || 0;
+  const getIntlDistance = (from: string, to: string) => intlMileageTable[from]?.[to] || intlMileageTable[to]?.[from] || 0;
+
+  // --- 国内線 運賃定義 ---
+  const domFareTypes: { [key: string]: { label: string, rate: number, bonus: number, classType: "first" | "economy" } } = isNewFare ? {
     "p_a": { label: "運賃A:ファーストクラス フレックス/Biz (150%)", rate: 1.50, bonus: 400, classType: "first" },
     "p_b": { label: "運賃B:ファーストクラス スタンダード (130%)", rate: 1.30, bonus: 400, classType: "first" },
     "p_c": { label: "運賃C:ファーストクラス シンプル (120%)", rate: 1.20, bonus: 400, classType: "first" },
@@ -161,11 +205,6 @@ export default function FlightCalculator() {
     "e_i": { label: "運賃I:エコノミークラス シンプル (70%)", rate: 0.70, bonus: 100, classType: "economy" },
     "e_j": { label: "運賃J:エコノミークラス セール/ユース/シニア (50%)", rate: 0.50, bonus: 0, classType: "economy" },
     "e_k": { label: "運賃K:エコノミークラス 包括旅行割引 (30%)", rate: 0.30, bonus: 0, classType: "economy" },
-    "e_l": { label: "運賃L:ファーストクラス フレックス 国際線接続 (150%)", rate: 1.50, bonus: 0, classType: "first" },
-    "e_m": { label: "運賃M:エコノミークラス フレックス 国際線接続 (100%)", rate: 1.0, bonus: 0, classType: "economy" },
-    "e_n": { label: "運賃N:エコノミークラス 国際線接続 (70%)", rate: 0.70, bonus: 0, classType: "economy" },
-    "e_o": { label: "運賃O:エコノミークラス 国際線接続 (50%)", rate: 0.50, bonus: 0, classType: "economy" },
-    "e_p": { label: "運賃P:エコノミークラス 国際線接続 (30%)", rate: 0.30, bonus: 0, classType: "economy" },
   } : {
     "old_fare1": { label: "運賃1:プレミアム運賃/Biz (150%)", rate: 1.50, bonus: 400, classType: "first" },
     "old_fare2": { label: "運賃2:ANA VALUE PREMIUM 3/SUPER VALUE PREMIUM28 (125%)", rate: 1.25, bonus: 400, classType: "first" },
@@ -175,22 +214,30 @@ export default function FlightCalculator() {
     "old_fare6": { label: "運賃6:ANA VALUE TRANSIT (75%)", rate: 0.75, bonus: 200, classType: "economy" },
     "old_fare7": { label: "運賃7:ANA SUPER VALUE 21/28/45/55/75 (75%)", rate: 0.75, bonus: 0, classType: "economy" },
     "old_fare8": { label: "運賃8:個人包括旅行/スマートU25/ANA SUPER VALUE SALE (50%)", rate: 0.50, bonus: 0, classType: "economy" },
-    "old_fare9": { label: "運賃9:国際航空券 プレミアムクラス (150%)", rate: 1.50, bonus: 0, classType: "first" },
-    "old_fare10": { label: "運賃10:国際航空券 普通席 Y/B/M (100%)", rate: 1.0, bonus: 0, classType: "economy" },
-    "old_fare11": { label: "運賃11:国際航空券 普通席 U/H/Q (70%)", rate: 0.70, bonus: 0, classType: "economy" },
-    "old_fare12": { label: "運賃12:国際航空券 普通席 V/W/S (50%)", rate: 0.50, bonus: 0, classType: "economy" },
-    "old_fare13": { label: "運賃13:国際航空券 普通席 L/K (30%)", rate: 0.30, bonus: 0, classType: "economy" },
   };
 
+  // --- 国際線 運賃定義 ---
+  const intlFareTypes: { [key: string]: { label: string, rate: number, bonus: number } } = {
+    "intl_f_a": { label: "ファースト/ビジネス F, A, J (150%)", rate: 1.50, bonus: 400 },
+    "intl_biz_c": { label: "ビジネス C, D, Z (125%)", rate: 1.25, bonus: 400 },
+    "intl_eco_m": { label: "プレエコ/エコノミー G, E, Y, B, M (100%)", rate: 1.00, bonus: 400 },
+    "intl_eco_h": { label: "ビジネスセール/プレエコ/エコノミー P, N, U, H, Q (70%)", rate: 0.70, bonus: 0 },
+    "intl_eco_v": { label: "エコノミー V, W, S, T (50%)", rate: 0.50, bonus: 0 },
+    "intl_eco_l": { label: "エコノミー L, K (30%)", rate: 0.30, bonus: 0 },
+  };
+
+  // 国内線 useEffects
   useEffect(() => {
-    const calcDist = via ? getDistance(origin, via) + getDistance(via, destination) : getDistance(origin, destination);
-    setManualDistance(calcDist);
-  }, [origin, via, destination]);
+    if (flightMode === "domestic") {
+      const calcDist = via ? getDomDistance(origin, via) + getDomDistance(via, destination) : getDomDistance(origin, destination);
+      setManualDistance(calcDist);
+    }
+  }, [origin, via, destination, flightMode]);
+
+  const getAvailableFareKeys = () => Object.keys(domFareTypes).filter(k => domFareTypes[k].classType === (isFirstClassOnly ? "first" : "economy"));
 
   useEffect(() => {
-    // ローカルストレージの読み込みが終わってからデフォルト運賃を再評価
-    if (!isLoaded) return;
-    
+    if (!isLoaded || flightMode !== "domestic") return;
     const available = getAvailableFareKeys();
     if (available.length > 0 && !available.includes(fareKey)) {
       let defaultKey = available[0];
@@ -200,24 +247,32 @@ export default function FlightCalculator() {
         defaultKey = isFirstClassOnly ? "old_fare2" : "old_fare7";
       }
       if (!available.includes(defaultKey)) defaultKey = available[0];
-      
       setFareKey(defaultKey);
     }
-  }, [isFirstClassOnly, isNewFare, fareKey, isLoaded]);
+  }, [isFirstClassOnly, isNewFare, fareKey, isLoaded, flightMode]);
 
   useEffect(() => {
-    if (!isLoaded) return;
-    const defaultKey = getDefaultFareKey();
-    const fare = fareTypes[fareKey] || fareTypes[defaultKey];
-    setBoardingBonus(fare?.bonus || 0);
-  }, [fareKey, isNewFare, isLoaded]);
+    if (!isLoaded || flightMode !== "domestic") return;
+    const defaultKey = getAvailableFareKeys().includes(fareKey) ? fareKey : getAvailableFareKeys()[0];
+    const fare = domFareTypes[fareKey] || domFareTypes[defaultKey];
+    if (fare) setBoardingBonus(fare.bonus || 0);
+  }, [fareKey, isNewFare, isLoaded, flightMode]);
 
-  const calculateBasePP = () => {
-    const defaultKey = getDefaultFareKey();
-    const fare = fareTypes[fareKey] || fareTypes[defaultKey];
+  // 国際線 useEffects
+  useEffect(() => {
+    if (flightMode === "international") {
+      setIntlManualDistance(getIntlDistance(intlOrigin, intlDestination));
+    }
+  }, [intlOrigin, intlDestination, flightMode]);
+
+  // --- 計算ロジック ---
+  const calculateDomPP = () => {
+    const defaultKey = getAvailableFareKeys()[0];
+    const fare = domFareTypes[fareKey] || domFareTypes[defaultKey];
+    if (!fare) return 0;
     
-    const dist1 = getDistance(origin, via);
-    const dist2 = getDistance(via, destination);
+    const dist1 = getDomDistance(origin, via);
+    const dist2 = getDomDistance(via, destination);
 
     if (via) {
       if (manualDistance === dist1 + dist2) {
@@ -232,15 +287,23 @@ export default function FlightCalculator() {
     }
   };
 
-  const basePP = calculateBasePP();
-  const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
-  const ppUnitPrice = totalPP > 0 ? (ticketPrice / totalPP).toFixed(1) : "0.0";
+  const calculateIntlPP = () => {
+    const fare = intlFareTypes[intlFareKey];
+    if (!fare) return 0;
 
-  const handleSwapRoute = () => {
-    const tempOrigin = origin;
-    setOrigin(destination);
-    setDestination(tempOrigin);
+    // アジア・オセアニアは路線倍率1.5倍、その他は1.0倍
+    const routeMultiplier = (asiaOceaniaCodes.includes(intlOrigin) || asiaOceaniaCodes.includes(intlDestination)) ? 1.5 : 1.0;
+    
+    return Math.floor(intlManualDistance * fare.rate * routeMultiplier) + fare.bonus;
   };
+
+  const basePP = flightMode === "domestic" ? calculateDomPP() : calculateIntlPP();
+  const totalPP = flightMode === "domestic" ? (tripType === "roundtrip" ? basePP * 2 : basePP) : (tripType === "roundtrip" ? basePP * 2 : basePP);
+  const currentPrice = flightMode === "domestic" ? ticketPrice : intlTicketPrice;
+  const ppUnitPrice = totalPP > 0 ? (currentPrice / totalPP).toFixed(1) : "0.0";
+
+  const handleSwapDomRoute = () => { const temp = origin; setOrigin(destination); setDestination(temp); };
+  const handleSwapIntlRoute = () => { const temp = intlOrigin; setIntlOrigin(intlDestination); setIntlDestination(temp); };
 
   const handleOutboundDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
@@ -248,11 +311,8 @@ export default function FlightCalculator() {
 
     if (tripType === "roundtrip") {
       setReturnDate(newDate);
-
-      // PCでは自動的に復路ピッカーを開くと挙動が不安定になる場合があるため、タッチ操作時のみ実行
       const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || window.matchMedia('(pointer:coarse)').matches);
       if (!isTouchDevice) return;
-
       setTimeout(() => {
         if (returnDateRef.current) {
           returnDateRef.current.focus();
@@ -260,9 +320,7 @@ export default function FlightCalculator() {
             if ('showPicker' in HTMLInputElement.prototype) {
               returnDateRef.current.showPicker();
             }
-          } catch (err) {
-            console.warn('showPicker unavailable', err);
-          }
+          } catch (err) { console.warn('showPicker unavailable', err); }
         }
       }, 50);
     }
@@ -275,11 +333,19 @@ export default function FlightCalculator() {
     const existingLogs = localStorage.getItem("sfc_flight_logs");
     const logsArray = existingLogs ? JSON.parse(existingLogs) : [];
 
-    const originName = airports.find(a => a.code === origin)?.name || origin;
-    const destName = airports.find(a => a.code === destination)?.name || destination;
-    const viaName = via ? airports.find(a => a.code === via)?.name : "";
+    let originName, destName, viaName, basePrice;
 
-    const basePrice = Math.floor(ticketPrice / (tripType === "roundtrip" ? 2 : 1));
+    if (flightMode === "domestic") {
+      originName = domAirports.find(a => a.code === origin)?.name || origin;
+      destName = domAirports.find(a => a.code === destination)?.name || destination;
+      viaName = via ? domAirports.find(a => a.code === via)?.name : "";
+      basePrice = Math.floor(ticketPrice / (tripType === "roundtrip" ? 2 : 1));
+    } else {
+      originName = intlAirports.find(a => a.code === intlOrigin)?.name || intlOrigin;
+      destName = intlAirports.find(a => a.code === intlDestination)?.name || intlDestination;
+      viaName = ""; // 国際線の単純往復を想定
+      basePrice = Math.floor(intlTicketPrice / (tripType === "roundtrip" ? 2 : 1));
+    }
 
     logsArray.push({
       id: crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(),
@@ -289,7 +355,7 @@ export default function FlightCalculator() {
       destination: destName,
       via: viaName,
       pp: basePP,
-      price: basePrice + (tripType === "roundtrip" ? ticketPrice % 2 : 0)
+      price: basePrice + (tripType === "roundtrip" ? currentPrice % 2 : 0)
     });
 
     if (tripType === "roundtrip") {
@@ -309,7 +375,6 @@ export default function FlightCalculator() {
     router.push("/");
   };
 
-  // Hydrationエラーを防ぐためのローディング待機
   if (!isLoaded) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-slate-400 font-bold text-sm">読み込み中...</p></div>;
 
   return (
@@ -325,9 +390,22 @@ export default function FlightCalculator() {
           </Link>
         </header>
 
+        {/* 国内・国際 切り替えタブ */}
+        <div className="flex justify-center mb-2">
+          <div className="bg-slate-200/70 p-1 rounded-xl inline-flex relative shadow-inner w-full md:w-auto">
+            <button onClick={() => setFlightMode("domestic")} className={`flex-1 md:flex-none relative z-10 px-8 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${flightMode === 'domestic' ? 'text-[#003184] bg-white shadow-md transform scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}>
+              ANA 国内線
+            </button>
+            <button onClick={() => setFlightMode("international")} className={`flex-1 md:flex-none relative z-10 px-8 py-2.5 text-sm font-bold rounded-lg transition-all duration-300 ${flightMode === 'international' ? 'text-[#003184] bg-white shadow-md transform scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}>
+              ANA 国際線
+            </button>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-7 bg-white rounded-xl p-6 md:p-8 border border-slate-200 shadow-sm space-y-8">
             
+            {/* 共通: 片道/往復、日付 */}
             <div className="flex bg-slate-100 p-1 rounded-lg w-fit shadow-inner">
               <button onClick={() => setTripType("oneway")} className={`px-6 py-2 text-xs font-bold rounded-md transition-all ${tripType === 'oneway' ? 'bg-white text-[#003184] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 片道
@@ -341,9 +419,11 @@ export default function FlightCalculator() {
               <div className="flex-1">
                 <label className="text-[10px] font-bold text-slate-400 mb-1.5 flex items-center justify-between uppercase tracking-wider text-[#003184]">
                   <span>{tripType === "roundtrip" ? "往路 (行き) 搭乗日" : "搭乗予定日"}</span>
-                  <span className={`px-2 py-0.5 rounded text-[9px] text-white shadow-sm ${isNewFare ? 'bg-emerald-500' : 'bg-slate-400'}`}>
-                    {isNewFare ? '新運賃体系 適用' : '現行運賃 適用'}
-                  </span>
+                  {flightMode === "domestic" && (
+                    <span className={`px-2 py-0.5 rounded text-[9px] text-white shadow-sm ${isNewFare ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                      {isNewFare ? '新運賃体系 適用' : '現行運賃 適用'}
+                    </span>
+                  )}
                 </label>
                 <input 
                   type="date" 
@@ -371,57 +451,94 @@ export default function FlightCalculator() {
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 {tripType === "roundtrip" ? "往路 (行き) のルートを設定" : "ルートを設定"}
               </div>
-              <button onClick={handleSwapRoute} className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#003184] text-[10px] font-bold rounded-full transition-colors border border-blue-200/50 shadow-sm">
+              <button onClick={flightMode === "domestic" ? handleSwapDomRoute : handleSwapIntlRoute} className="flex items-center gap-1.5 px-4 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#003184] text-[10px] font-bold rounded-full transition-colors border border-blue-200/50 shadow-sm">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
                 出発・到着を反転
               </button>
             </div>
 
-            <div className="flex flex-col md:flex-row md:items-center md:justify-start gap-4 mb-4">
-              <label className="inline-flex items-center gap-2 text-sm md:text-base font-bold text-slate-600 cursor-pointer">
-                <input type="checkbox" className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
-                {isFirstClassOnly ? (isNewFare ? "ファーストクラスのみ" : "プレミアムクラスのみ") : "普通席/エコノミークラスのみ"}
-              </label>
-            </div>
+            {flightMode === "domestic" ? (
+              // --- 国内線 入力エリア ---
+              <>
+                <div className="flex flex-col md:flex-row md:items-center md:justify-start gap-4 mb-4">
+                  <label className="inline-flex items-center gap-2 text-sm md:text-base font-bold text-slate-600 cursor-pointer">
+                    <input type="checkbox" className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
+                    {isFirstClassOnly ? (isNewFare ? "ファーストクラスのみ" : "プレミアムクラスのみ") : "普通席/エコノミークラスのみ"}
+                  </label>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-              <SearchableAirportSelect label="出発空港" value={origin} onChange={setOrigin} />
-              <SearchableAirportSelect label="経由地 (任意)" value={via} onChange={setVia} allowEmpty={true} />
-              <SearchableAirportSelect label="到着空港" value={destination} onChange={setDestination} />
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                  <SearchableAirportSelect label="出発空港" value={origin} onChange={setOrigin} isIntl={false} />
+                  <SearchableAirportSelect label="経由地 (任意)" value={via} onChange={setVia} allowEmpty={true} isIntl={false} />
+                  <SearchableAirportSelect label="到着空港" value={destination} onChange={setDestination} isIntl={false} />
+                </div>
 
-            <div className="p-5 bg-slate-50 rounded-xl border border-slate-200/60 mt-4">
-              <label className="text-[10px] font-bold text-slate-500 mb-2 flex items-center justify-between">
-                <span>区間基本マイレージ (片道合計)</span>
-                <span className="text-blue-500 font-medium">※自動算出されない場合は手入力</span>
-              </label>
-              <div className="flex items-center">
-                <input type="number" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-xl font-bold text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={manualDistance} onChange={(e) => setManualDistance(Number(e.target.value))} />
-                <span className="ml-3 text-sm font-bold text-slate-400">マイル</span>
-              </div>
-            </div>
+                <div className="p-5 bg-slate-50 rounded-xl border border-slate-200/60 mt-4">
+                  <label className="text-[10px] font-bold text-slate-500 mb-2 flex items-center justify-between">
+                    <span>区間基本マイレージ (片道合計)</span>
+                    <span className="text-blue-500 font-medium">※自動算出されない場合は手入力</span>
+                  </label>
+                  <div className="flex items-center">
+                    <input type="number" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-xl font-bold text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={manualDistance} onChange={(e) => setManualDistance(Number(e.target.value))} />
+                    <span className="ml-3 text-sm font-bold text-slate-400">マイル</span>
+                  </div>
+                </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">運賃種別</label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={fareKey} onChange={(e) => setFareKey(e.target.value)}>
-                  {getAvailableFareKeys().map(k => <option key={k} value={k}>{fareTypes[k].label}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">搭乗ボーナス PP (1区間あたり)　<span className="text-blue-500">※自動反映</span></label>
-                <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={boardingBonus} onChange={(e) => setBoardingBonus(Number(e.target.value))}>
-                  <option value={0}>なし (0 PP)</option>
-                  <option value={100}>100 PP</option>
-                  <option value={200}>200 PP</option>
-                  <option value={400}>400 PP</option>
-                </select>
-              </div>
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">運賃種別</label>
+                    <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={fareKey} onChange={(e) => setFareKey(e.target.value)}>
+                      {getAvailableFareKeys().map(k => <option key={k} value={k}>{domFareTypes[k].label}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">搭乗ボーナス PP (1区間あたり)</label>
+                    <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={boardingBonus} onChange={(e) => setBoardingBonus(Number(e.target.value))}>
+                      <option value={0}>なし (0 PP)</option>
+                      <option value={100}>100 PP</option>
+                      <option value={200}>200 PP (乗継等)</option>
+                      <option value={400}>あり (400 PP)</option>
+                    </select>
+                  </div>
+                </div>
+              </>
+            ) : (
+              // --- 国際線 入力エリア ---
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                  <SearchableAirportSelect label="日本の出発/到着 空港" value={intlOrigin} onChange={setIntlOrigin} isIntl={true} />
+                  <SearchableAirportSelect label="海外の到着/出発 空港" value={intlDestination} onChange={setIntlDestination} isIntl={true} />
+                </div>
+                <p className="text-[9px] text-slate-400 mt-1">※国際線に含まれる国内区間は、国内線タブを利用して片道ずつ登録してください。</p>
+
+                <div className="p-5 bg-slate-50 rounded-xl border border-slate-200/60 mt-4">
+                  <label className="text-[10px] font-bold text-slate-500 mb-2 flex items-center justify-between">
+                    <span>区間基本マイレージ (片道 TPM)</span>
+                    <span className="text-blue-500 font-medium">※自動算出されない場合は手入力</span>
+                  </label>
+                  <div className="flex items-center">
+                    <input type="number" className="w-full bg-white border border-slate-300 rounded-lg p-3 text-xl font-bold text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={intlManualDistance} onChange={(e) => setIntlManualDistance(Number(e.target.value))} />
+                    <span className="ml-3 text-sm font-bold text-slate-400">マイル</span>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 pt-6">
+                  <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">予約クラス・運賃種別</label>
+                  <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={intlFareKey} onChange={(e) => setIntlFareKey(e.target.value)}>
+                    {Object.keys(intlFareTypes).map(k => <option key={k} value={k}>{intlFareTypes[k].label}</option>)}
+                  </select>
+                </div>
+              </>
+            )}
 
             <div className="pt-2">
               <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">航空券代 (円) <span className="text-blue-500 ml-2">※{tripType === "roundtrip" ? "往復の総額" : "片道の金額"}を入力</span></label>
-              <input type="number" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-base font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all" value={ticketPrice} onChange={(e) => setTicketPrice(Number(e.target.value))} />
+              <input 
+                type="number" 
+                className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-base font-bold focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
+                value={flightMode === "domestic" ? ticketPrice : intlTicketPrice} 
+                onChange={(e) => flightMode === "domestic" ? setTicketPrice(Number(e.target.value)) : setIntlTicketPrice(Number(e.target.value))} 
+              />
             </div>
           </div>
 
@@ -446,19 +563,28 @@ export default function FlightCalculator() {
                 </div>
 
                 <div className="bg-blue-900/40 rounded-lg p-3 mt-4 text-[10px] text-blue-100 font-medium leading-relaxed text-left border border-blue-800/50">
-                  <span className="text-blue-300 font-bold block mb-1">【片道分の内訳】</span>
-                  {via && manualDistance === getDistance(origin, via) + getDistance(via, destination) ? (
-                    <>
-                      区間①: ({getDistance(origin, via)} × {fareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDistance(origin, via) * (fareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
-                      区間②: ({getDistance(via, destination)} × {fareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDistance(via, destination) * (fareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
-                      片道合計: <span className="text-white font-bold">{basePP} PP</span>
-                    </>
+                  <span className="text-blue-300 font-bold block mb-1">【片道分の計算式】</span>
+                  
+                  {flightMode === "domestic" ? (
+                    via && manualDistance === getDomDistance(origin, via) + getDomDistance(via, destination) ? (
+                      <>
+                        区間①: floor({getDomDistance(origin, via)} × {domFareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDomDistance(origin, via) * (domFareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
+                        区間②: floor({getDomDistance(via, destination)} × {domFareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDomDistance(via, destination) * (domFareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
+                        片道合計: <span className="text-white font-bold">{basePP} PP</span>
+                        <p className="mt-1 text-blue-300/50 text-[9px]">※国内線(路線倍率2倍)で端数切り捨て後、ボーナス加算</p>
+                      </>
+                    ) : (
+                      <>
+                        floor({manualDistance} × {domFareTypes[fareKey]?.rate} × 2) ＋ <span className="text-yellow-300 font-bold">{via ? boardingBonus * 2 : boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
+                        <p className="mt-1 text-blue-300/50 text-[9px]">※国内線(路線倍率2倍)で端数切り捨て後、ボーナス加算</p>
+                      </>
+                    )
                   ) : (
                     <>
-                      ({manualDistance} × {fareTypes[fareKey]?.rate} × 2) ＋ <span className="text-yellow-300 font-bold">{via ? boardingBonus * 2 : boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
+                      floor({intlManualDistance} × {intlFareTypes[intlFareKey]?.rate} × {(asiaOceaniaCodes.includes(intlOrigin) || asiaOceaniaCodes.includes(intlDestination)) ? "1.5(ｱｼﾞア/ｵｾｱﾆｱ)" : "1.0(その他)"}) ＋ <span className="text-yellow-300 font-bold">{intlFareTypes[intlFareKey]?.bonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
+                      <p className="mt-1 text-blue-300/50 text-[9px]">※(TPM × 積算率 × 路線倍率) で端数切り捨て後、ボーナス加算</p>
                     </>
                   )}
-                  <p className="mt-1 text-blue-300/50 text-[9px]">※(マイル×倍率×2倍)で端数切り捨て後、ボーナスを加算</p>
                 </div>
               </div>
             </div>
