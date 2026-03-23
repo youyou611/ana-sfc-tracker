@@ -350,6 +350,13 @@ export default function FlightCalculator() {
               </button>
             </div>
 
+            <div className="flex flex-col md:flex-row md:items-center md:justify-start gap-4 mb-4">
+              <label className="inline-flex items-center gap-2 text-sm md:text-base font-bold text-slate-600">
+                <input type="checkbox" className="h-4 w-4" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
+                {isFirstClassOnly ? "ファーストクラスのみ" : "エコノミークラスのみ"}
+              </label>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
               <SearchableAirportSelect label="出発空港" value={origin} onChange={setOrigin} />
               <SearchableAirportSelect label="経由地 (任意)" value={via} onChange={setVia} allowEmpty={true} />
@@ -369,10 +376,6 @@ export default function FlightCalculator() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
               <div>
-                <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
-                  <input type="checkbox" className="h-4 w-4" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
-                  <span>{isFirstClassOnly ? "ファーストクラスのみ" : "エコノミークラスのみ"}</span>
-                </label>
                 <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">運賃種別</label>
                 <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={fareKey} onChange={(e) => setFareKey(e.target.value)}>
                   {getAvailableFareKeys().map(k => <option key={k} value={k}>{fareTypes[k].label}</option>)}
