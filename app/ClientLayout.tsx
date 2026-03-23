@@ -24,6 +24,7 @@ export default function ClientLayout({
   const handleMenuClick = () => {
      // スマホなどの狭い画面や、PCでも「クリックしたら閉じてほしい」場合に有効
      setIsOpen(false);
+     setIsHovering(false);
   };
 
   return (
