@@ -11,7 +11,11 @@ export default function ClientLayout({
 }) {
   // サイドバーの開閉状態
   const [isOpen, setIsOpen] = useState(false);
+  const [isHovering, setIsHovering] = useState(false);
   const pathname = usePathname(); // 現在のURLを取得
+
+  // サイドバーが見えている状態
+  const isSidebarOpen = isOpen || isHovering;
 
   // トグルボタンを押した時の処理
   const toggleSidebar = () => setIsOpen(!isOpen);
@@ -29,9 +33,11 @@ export default function ClientLayout({
         transition-all duration-300 cubic-bezier(...) でヌルッとした動きを実現
       */}
       <aside
+        onMouseEnter={() => setIsHovering(true)}
+        onMouseLeave={() => setIsHovering(false)}
         className={`fixed left-0 top-0 h-full bg-[#002561] text-white z-50 flex flex-col border-r border-blue-900 shadow-2xl overflow-hidden
         transition-[width] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-        ${isOpen ? "w-72" : "w-20"} 
+        ${isSidebarOpen ? "w-72" : "w-20"} 
         `}
       >
         {/* ハンバーガーメニュー ＆ ロゴエリア */}
@@ -41,18 +47,18 @@ export default function ClientLayout({
           <button
             onClick={toggleSidebar}
             className="h-20 w-20 flex items-center justify-center hover:bg-white/10 transition-colors shrink-0 outline-none"
-            title={isOpen ? "メニューを閉じる" : "メニューを開く"}
+            title={isSidebarOpen ? "メニューを閉じる" : "メニューを開く"}
           >
             <div className="relative w-6 h-6 flex flex-col justify-center gap-1.5">
               {/* ハンバーガーアイコンのアニメーション */}
-              <span className={`block h-0.5 w-6 bg-blue-300 rounded-full transition-transform duration-300 ${isOpen ? "rotate-45 translate-y-2" : ""}`}></span>
-              <span className={`block h-0.5 w-6 bg-blue-300 rounded-full transition-opacity duration-300 ${isOpen ? "opacity-0" : ""}`}></span>
-              <span className={`block h-0.5 w-6 bg-blue-300 rounded-full transition-transform duration-300 ${isOpen ? "-rotate-45 -translate-y-2" : ""}`}></span>
+              <span className={`block h-0.5 w-6 bg-blue-300 rounded-full transition-transform duration-300 ${isSidebarOpen ? "rotate-45 translate-y-2" : ""}`}></span>
+              <span className={`block h-0.5 w-6 bg-blue-300 rounded-full transition-opacity duration-300 ${isSidebarOpen ? "opacity-0" : ""}`}></span>
+              <span className={`block h-0.5 w-6 bg-blue-300 rounded-full transition-transform duration-300 ${isSidebarOpen ? "-rotate-45 -translate-y-2" : ""}`}></span>
             </div>
           </button>
 
           {/* ロゴテキスト（遅延表示でスムーズに） */}
-          <div className={`transition-opacity duration-300 delay-100 absolute left-20 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+          <div className={`transition-opacity duration-300 delay-100 absolute left-20 ${isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
             <span className="font-black tracking-widest text-lg block leading-none whitespace-nowrap">
               SFC TRACKER
             </span>
@@ -68,7 +74,7 @@ export default function ClientLayout({
             href="/" 
             iconPath="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" 
             label="ダッシュボード" 
-            isOpen={isOpen} 
+            isOpen={isSidebarOpen} 
             isActive={pathname === "/"} 
             onClick={handleMenuClick} 
           />
@@ -77,7 +83,7 @@ export default function ClientLayout({
             href="/flight" 
             iconPath="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" 
             label="フライト予定・登録" 
-            isOpen={isOpen} 
+            isOpen={isSidebarOpen} 
             isActive={pathname === "/flight"} 
             onClick={handleMenuClick} 
           />
@@ -88,7 +94,7 @@ export default function ClientLayout({
             href="/guide" 
             iconPath="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" 
             label="SFC修行とは？" 
-            isOpen={isOpen} 
+            isOpen={isSidebarOpen} 
             isActive={pathname === "/guide"} 
             onClick={handleMenuClick} 
           />
@@ -97,14 +103,14 @@ export default function ClientLayout({
             href="/backup" 
             iconPath="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" 
             label="設定・バックアップ" 
-            isOpen={isOpen} 
+            isOpen={isSidebarOpen} 
             isActive={pathname === "/backup"} 
             onClick={handleMenuClick} 
           />
         </nav>
 
         {/* フッター */}
-        <div className={`p-6 border-t border-blue-800/50 bg-[#001b47] transition-opacity duration-300 delay-75 ${isOpen ? "opacity-100" : "opacity-0"}`}>
+        <div className={`p-6 border-t border-blue-800/50 bg-[#001b47] transition-opacity duration-300 delay-75 ${isSidebarOpen ? "opacity-100" : "opacity-0"}`}>
           <div className="whitespace-nowrap overflow-hidden">
             <p className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Version 1.1.0</p>
             <p className="text-[10px] text-slate-500 mt-1">Status: Platinum</p>
@@ -116,7 +122,7 @@ export default function ClientLayout({
         サイドバーの幅に合わせて左マージンをアニメーションさせる
       */}
       <main 
-        className={`flex-1 w-full relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isOpen ? "ml-72" : "ml-20"}`}
+        className={`flex-1 w-full relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isSidebarOpen ? "ml-72" : "ml-20"}`}
       >
         {children}
       </main>
