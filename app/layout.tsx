@@ -1,8 +1,7 @@
-// app/layout.tsx
 import type { Metadata } from 'next'
 import './globals.css'
 import ClientLayout from './ClientLayout'
-import Script from 'next/script' // ★ これを追加！
+import Script from 'next/script' // ← Next.js専用のスクリプト読み込み機能
 
 export const metadata: Metadata = {
   title: 'SFC修行トラッカー 2026',
@@ -17,12 +16,12 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
-        {/* headタグの中に直接scriptを書くのはNGなので消しました */}
+        {/* AdSenseのコードはエラーを防ぐため、ここではなく下の <Script> で読み込みます */}
       </head>
 
       <body className="bg-slate-50">
         
-        {/* ★ AdSenseのコードは next/script を使ってここで読み込みます */}
+        {/* Google AdSense の審査用コード */}
         <Script
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7337147183489280"
@@ -30,10 +29,11 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
 
-        {/* クライアント側の動きは全てここで処理 */}
+        {/* サイドバーとメインコンテンツ */}
         <ClientLayout>
           {children}
         </ClientLayout>
+        
       </body>
     </html>
   )
