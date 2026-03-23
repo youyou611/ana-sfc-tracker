@@ -245,9 +245,14 @@ export default function FlightCalculator() {
   const handleOutboundDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
     setDate(newDate);
-    
+
     if (tripType === "roundtrip") {
       setReturnDate(newDate);
+
+      // PCでは自動的に復路ピッカーを開くと挙動が不安定になる場合があるため、タッチ操作時のみ実行
+      const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || window.matchMedia('(pointer:coarse)').matches);
+      if (!isTouchDevice) return;
+
       setTimeout(() => {
         if (returnDateRef.current) {
           returnDateRef.current.focus();
@@ -255,7 +260,9 @@ export default function FlightCalculator() {
             if ('showPicker' in HTMLInputElement.prototype) {
               returnDateRef.current.showPicker();
             }
-          } catch (err) {}
+          } catch (err) {
+            console.warn('showPicker unavailable', err);
+          }
         }
       }, 50);
     }
