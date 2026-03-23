@@ -81,13 +81,14 @@ export default function FlightCalculator() {
   const [date, setDate] = useState(today);
   const [returnDate, setReturnDate] = useState(today);
   
-  const [isNewFare, setIsNewFare] = useState(false); 
+  // ★ 自動判定: 2026-05-19以降なら新運賃とする
+  const isNewFare = new Date(date) >= new Date("2026-05-19");
+  
   const [origin, setOrigin] = useState("ITM");
   const [via, setVia] = useState("OKA");
   const [destination, setDestination] = useState("ISG");
   
   const [manualDistance, setManualDistance] = useState<number>(0); 
-  // デフォルト運賃をプレミアム系にしやすいよう調整
   const [fareKey, setFareKey] = useState("old_fare7"); 
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
@@ -117,7 +118,7 @@ export default function FlightCalculator() {
     return isNewFare ? "p_c" : "old_fare7";
   };
 
-  // 運賃定義：ANA新運賃体系（2025年5月19日～）
+  // 運賃定義：ANA新運賃体系（2025年5月19日～） ※表示ラベルも一部調整
   const fareTypes: { [key: string]: { label: string, rate: number, bonus: number, classType: "first" | "economy" } } = isNewFare ? {
     "p_a": { label: "運賃A:ファーストクラス フレックス/Biz (150%)", rate: 1.50, bonus: 400, classType: "first" },
     "p_b": { label: "運賃B:ファーストクラス スタンダード (130%)", rate: 1.30, bonus: 400, classType: "first" },
@@ -162,38 +163,39 @@ export default function FlightCalculator() {
     setBoardingBonus(fare?.bonus || 0);
   }, [fareKey, isNewFare]);
 
+  // 日付の変更などで運賃体系が変わった場合、適切なデフォルト値に切り替える
   useEffect(() => {
     const available = getAvailableFareKeys();
     if (available.length > 0 && !available.includes(fareKey)) {
-      setFareKey(available[0]);
+      // 切り替わった際、よく使われる運賃をデフォルト選択にする
+      let defaultKey = available[0];
+      if (isNewFare) {
+        defaultKey = isFirstClassOnly ? "p_c" : "e_i"; // シンプル系
+      } else {
+        defaultKey = isFirstClassOnly ? "old_fare2" : "old_fare7"; // VALUE PREMIUM / SUPER VALUE
+      }
+      if (!available.includes(defaultKey)) defaultKey = available[0];
+      
+      setFareKey(defaultKey);
     }
   }, [isFirstClassOnly, isNewFare, fareKey]);
 
-  // PP計算ロジック（修正済：2倍してから切り捨て）
   const calculateBasePP = () => {
     const defaultKey = getDefaultFareKey();
     const fare = fareTypes[fareKey] || fareTypes[defaultKey];
     
     const dist1 = getDistance(origin, via);
     const dist2 = getDistance(via, destination);
-    
-    // 計算ロジック変更:
-    // 従来: floor(マイル * 倍率) * 2  → 2172PP (1足りない)
-    // 修正: floor(マイル * 倍率 * 2)  → 2173PP (正解)
-    // ※ANA国内線は一律2倍のため、先に2倍してから端数処理を行うことで整合します
 
     if (via) {
       if (manualDistance === dist1 + dist2) {
-        // 区間ごとに計算
         const pp1 = Math.floor(dist1 * fare.rate * 2) + boardingBonus;
         const pp2 = Math.floor(dist2 * fare.rate * 2) + boardingBonus;
         return pp1 + pp2;
       } else {
-        // 手動距離入力時もボーナスは2回分
         return Math.floor(manualDistance * fare.rate * 2) + (boardingBonus * 2);
       }
     } else {
-      // 直行便
       return Math.floor(manualDistance * fare.rate * 2) + boardingBonus;
     }
   };
@@ -201,15 +203,6 @@ export default function FlightCalculator() {
   const basePP = calculateBasePP();
   const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
   const ppUnitPrice = totalPP > 0 ? (ticketPrice / totalPP).toFixed(1) : "0.0";
-
-  const switchToOldFare = () => {
-    setIsNewFare(false);
-    setFareKey(isFirstClassOnly ? "old_fare1" : "old_fare5");
-  };
-  const switchToNewFare = () => {
-    setIsNewFare(true);
-    setFareKey(isFirstClassOnly ? "p_a" : "e_d");
-  };
 
   const handleSwapRoute = () => {
     const tempOrigin = origin;
@@ -290,17 +283,6 @@ export default function FlightCalculator() {
           </Link>
         </header>
 
-        <div className="flex justify-center mb-2">
-          <div className="bg-slate-200/70 p-1 rounded-xl inline-flex relative shadow-inner w-full md:w-auto">
-            <button onClick={switchToOldFare} className={`flex-1 md:flex-none relative z-10 px-8 py-2.5 text-xs font-bold rounded-lg transition-all duration-300 ${!isNewFare ? 'text-[#003184] bg-white shadow-md transform scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}>
-              〜5/18 旧運賃
-            </button>
-            <button onClick={switchToNewFare} className={`flex-1 md:flex-none relative z-10 px-8 py-2.5 text-xs font-bold rounded-lg transition-all duration-300 ${isNewFare ? 'text-[#003184] bg-white shadow-md transform scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}>
-              5/19〜 新運賃体系
-            </button>
-          </div>
-        </div>
-
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           <div className="md:col-span-7 bg-white rounded-xl p-6 md:p-8 border border-slate-200 shadow-sm space-y-8">
             
@@ -315,8 +297,12 @@ export default function FlightCalculator() {
 
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
-                <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider text-[#003184]">
-                  {tripType === "roundtrip" ? "往路 (行き) 搭乗日" : "搭乗予定日"}
+                {/* ★ 変更箇所: 日付によって新旧どちらが適用されているかバッジで表示 */}
+                <label className="text-[10px] font-bold text-slate-400 mb-1.5 flex items-center justify-between uppercase tracking-wider text-[#003184]">
+                  <span>{tripType === "roundtrip" ? "往路 (行き) 搭乗日" : "搭乗予定日"}</span>
+                  <span className={`px-2 py-0.5 rounded text-[9px] text-white shadow-sm ${isNewFare ? 'bg-emerald-500' : 'bg-slate-400'}`}>
+                    {isNewFare ? '新運賃体系 適用' : '現行運賃 適用'}
+                  </span>
                 </label>
                 <input 
                   type="date" 
@@ -351,9 +337,10 @@ export default function FlightCalculator() {
             </div>
 
             <div className="flex flex-col md:flex-row md:items-center md:justify-start gap-4 mb-4">
-              <label className="inline-flex items-center gap-2 text-sm md:text-base font-bold text-slate-600">
-                <input type="checkbox" className="h-4 w-4" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
-                {isFirstClassOnly ? "ファーストクラスのみ" : "エコノミークラスのみ"}
+              <label className="inline-flex items-center gap-2 text-sm md:text-base font-bold text-slate-600 cursor-pointer">
+                <input type="checkbox" className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
+                {/* ★ 変更箇所: 新運賃ならファースト、旧運賃ならプレミアムと動的に表示変更 */}
+                {isFirstClassOnly ? (isNewFare ? "ファーストクラスのみ" : "プレミアムクラスのみ") : "普通席/エコノミークラスのみ"}
               </label>
             </div>
 
@@ -385,6 +372,7 @@ export default function FlightCalculator() {
                 <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">搭乗ボーナス PP (1区間あたり)</label>
                 <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={boardingBonus} onChange={(e) => setBoardingBonus(Number(e.target.value))}>
                   <option value={0}>なし (0 PP)</option>
+                  <option value={100}>100 PP</option>
                   <option value={200}>200 PP (乗継等)</option>
                   <option value={400}>あり (400 PP)</option>
                 </select>
@@ -440,7 +428,6 @@ export default function FlightCalculator() {
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
             </button>
           </div>
-          
         </div>
       </div>
     </div>
