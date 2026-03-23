@@ -60,7 +60,7 @@ export default function BackupPage() {
   // --- データを全消去（危険ゾーン） ---
   const handleClear = () => {
     if (confirm("【警告】すべてのフライト履歴が完全に削除されます。\n本当によろしいですか？")) {
-      if (confirm("本当にすべて消去しますか？（元には戻せません）")) {
+       {
         localStorage.removeItem("sfc_flight_logs");
         alert("すべてのデータを消去しました。");
         window.location.href = "/";
