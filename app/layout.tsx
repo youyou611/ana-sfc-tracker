@@ -1,7 +1,8 @@
 // app/layout.tsx
 import type { Metadata } from 'next'
 import './globals.css'
-import ClientLayout from './ClientLayout' // 手順1で作ったファイルを読み込み
+import ClientLayout from './ClientLayout'
+import Script from 'next/script' // ★ これを追加！
 
 export const metadata: Metadata = {
   title: 'SFC修行トラッカー 2026',
@@ -16,10 +17,19 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
-        <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7337147183489280" crossOrigin="anonymous"></script>
+        {/* headタグの中に直接scriptを書くのはNGなので消しました */}
       </head>
 
       <body className="bg-slate-50">
+        
+        {/* ★ AdSenseのコードは next/script を使ってここで読み込みます */}
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7337147183489280"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+
         {/* クライアント側の動きは全てここで処理 */}
         <ClientLayout>
           {children}
