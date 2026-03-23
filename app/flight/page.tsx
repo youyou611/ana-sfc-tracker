@@ -402,7 +402,7 @@ export default function FlightCalculator() {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">搭乗ボーナス PP (1区間あたり)　※自動反映</span></label>
+                <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">搭乗ボーナス PP (1区間あたり)　<span className="text-blue-500">※自動反映</span></label>
                 <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={boardingBonus} onChange={(e) => setBoardingBonus(Number(e.target.value))}>
                   <option value={0}>なし (0 PP)</option>
                   <option value={100}>100 PP</option>
