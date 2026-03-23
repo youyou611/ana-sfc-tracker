@@ -383,7 +383,10 @@ export default function FlightCalculator() {
         
         <header className="flex flex-col md:flex-row md:justify-between md:items-center border-b border-slate-200 pb-6 gap-4">
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-[#003184]">PP フライトシミュレーター</h1>
+            <Link href="/" className="text-xl font-black tracking-tight text-[#003184] hover:text-blue-700 transition-colors">
+              Flight Tracker
+            </Link>
+            <p className="text-sm text-slate-500">PP フライトシミュレーター</p>
           </div>
           <Link href="/" className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-[#003184] transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
             ← ダッシュボードへ戻る

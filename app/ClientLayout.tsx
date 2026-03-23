@@ -60,10 +60,10 @@ export default function ClientLayout({
 
           {/* ロゴテキスト（遅延表示でスムーズに） */}
           <div className={`transition-opacity duration-300 delay-100 absolute left-20 ${isSidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-            <span className="font-black tracking-widest text-lg block leading-none whitespace-nowrap">
-              SFC TRACKER
-            </span>
-            <span className="text-[9px] text-blue-400 font-bold uppercase tracking-[0.2em] whitespace-nowrap">
+            <a href="/" className="block font-black tracking-widest text-lg leading-none whitespace-nowrap text-white hover:text-blue-200 transition-colors">
+              Flight Tracker
+            </a>
+            <span className="text-[9px] text-blue-200 font-bold uppercase tracking-[0.2em] whitespace-nowrap">
               Personal Dashboard
             </span>
           </div>

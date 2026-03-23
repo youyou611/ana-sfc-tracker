@@ -230,8 +230,8 @@ export default function Home() {
                       2026.02.19
                     </div>
                     <div className="flex-1">
-                      <p className="text-sm font-bold text-slate-700">SFC修行トラッカー サイト開設 🚀</p>
-                      <p className="text-xs text-slate-500 mt-1">ベータ版としてダッシュボード、フライトPP計算機を公開しました。</p>
+                      <p className="text-sm font-bold text-slate-700">フライトトラッカー サイト開設 🚀</p>
+                      <p className="text-xs text-slate-500 mt-1">ベータ版としてANA国内線のダッシュボード、フライトPP計算機を公開しました。</p>
                     </div>
                   </li>
                 </ul>
