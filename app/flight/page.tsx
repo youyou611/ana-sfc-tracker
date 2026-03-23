@@ -74,26 +74,57 @@ const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false }:
 
 export default function FlightCalculator() {
   const router = useRouter();
-  
   const today = new Date().toISOString().split('T')[0];
   
+  // 初期値の宣言（マウント前）
   const [tripType, setTripType] = useState<"oneway" | "roundtrip">("oneway");
   const [date, setDate] = useState(today);
   const [returnDate, setReturnDate] = useState(today);
-  
-  // ★ 自動判定: 2026-05-19以降なら新運賃とする
-  const isNewFare = new Date(date) >= new Date("2026-05-19");
-  
   const [origin, setOrigin] = useState("ITM");
   const [via, setVia] = useState("OKA");
   const [destination, setDestination] = useState("ISG");
-  
-  const [manualDistance, setManualDistance] = useState<number>(0); 
   const [fareKey, setFareKey] = useState("old_fare7"); 
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
   const [isFirstClassOnly, setIsFirstClassOnly] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
 
+  // ★ 1. マウント時にlocalStorageから前回の状態を読み込む
+  useEffect(() => {
+    const savedState = localStorage.getItem("sfc_calculator_state");
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.tripType) setTripType(parsed.tripType);
+        if (parsed.date) setDate(parsed.date);
+        if (parsed.returnDate) setReturnDate(parsed.returnDate);
+        if (parsed.origin) setOrigin(parsed.origin);
+        if (parsed.via !== undefined) setVia(parsed.via); // 空文字（経由なし）も許容
+        if (parsed.destination) setDestination(parsed.destination);
+        if (parsed.fareKey) setFareKey(parsed.fareKey);
+        if (parsed.boardingBonus !== undefined) setBoardingBonus(parsed.boardingBonus);
+        if (parsed.ticketPrice !== undefined) setTicketPrice(parsed.ticketPrice);
+        if (parsed.isFirstClassOnly !== undefined) setIsFirstClassOnly(parsed.isFirstClassOnly);
+      } catch (e) {
+        console.error("状態の復元に失敗しました", e);
+      }
+    }
+    setIsLoaded(true);
+  }, []);
+
+  // ★ 2. 状態が変化するたびにlocalStorageに保存する
+  useEffect(() => {
+    if (isLoaded) {
+      const currentState = {
+        tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly
+      };
+      localStorage.setItem("sfc_calculator_state", JSON.stringify(currentState));
+    }
+  }, [tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly, isLoaded]);
+
+
+  const isNewFare = new Date(date) >= new Date("2026-05-19");
+  const [manualDistance, setManualDistance] = useState<number>(0); 
   const returnDateRef = useRef<HTMLInputElement>(null);
 
   // 簡易マイレージテーブル
@@ -118,7 +149,6 @@ export default function FlightCalculator() {
     return isNewFare ? "p_c" : "old_fare7";
   };
 
-  // 運賃定義：ANA新運賃体系（2025年5月19日～） ※表示ラベルも一部調整
   const fareTypes: { [key: string]: { label: string, rate: number, bonus: number, classType: "first" | "economy" } } = isNewFare ? {
     "p_a": { label: "運賃A:ファーストクラス フレックス/Biz (150%)", rate: 1.50, bonus: 400, classType: "first" },
     "p_b": { label: "運賃B:ファーストクラス スタンダード (130%)", rate: 1.30, bonus: 400, classType: "first" },
@@ -158,27 +188,29 @@ export default function FlightCalculator() {
   }, [origin, via, destination]);
 
   useEffect(() => {
-    const defaultKey = getDefaultFareKey();
-    const fare = fareTypes[fareKey] || fareTypes[defaultKey];
-    setBoardingBonus(fare?.bonus || 0);
-  }, [fareKey, isNewFare]);
-
-  // 日付の変更などで運賃体系が変わった場合、適切なデフォルト値に切り替える
-  useEffect(() => {
+    // ローカルストレージの読み込みが終わってからデフォルト運賃を再評価
+    if (!isLoaded) return;
+    
     const available = getAvailableFareKeys();
     if (available.length > 0 && !available.includes(fareKey)) {
-      // 切り替わった際、よく使われる運賃をデフォルト選択にする
       let defaultKey = available[0];
       if (isNewFare) {
-        defaultKey = isFirstClassOnly ? "p_c" : "e_i"; // シンプル系
+        defaultKey = isFirstClassOnly ? "p_c" : "e_i";
       } else {
-        defaultKey = isFirstClassOnly ? "old_fare2" : "old_fare7"; // VALUE PREMIUM / SUPER VALUE
+        defaultKey = isFirstClassOnly ? "old_fare2" : "old_fare7";
       }
       if (!available.includes(defaultKey)) defaultKey = available[0];
       
       setFareKey(defaultKey);
     }
-  }, [isFirstClassOnly, isNewFare, fareKey]);
+  }, [isFirstClassOnly, isNewFare, fareKey, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const defaultKey = getDefaultFareKey();
+    const fare = fareTypes[fareKey] || fareTypes[defaultKey];
+    setBoardingBonus(fare?.bonus || 0);
+  }, [fareKey, isNewFare, isLoaded]);
 
   const calculateBasePP = () => {
     const defaultKey = getDefaultFareKey();
@@ -270,6 +302,9 @@ export default function FlightCalculator() {
     router.push("/");
   };
 
+  // Hydrationエラーを防ぐためのローディング待機
+  if (!isLoaded) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-slate-400 font-bold text-sm">読み込み中...</p></div>;
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 p-4 md:p-8 font-sans pb-20">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -297,7 +332,6 @@ export default function FlightCalculator() {
 
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1">
-                {/* ★ 変更箇所: 日付によって新旧どちらが適用されているかバッジで表示 */}
                 <label className="text-[10px] font-bold text-slate-400 mb-1.5 flex items-center justify-between uppercase tracking-wider text-[#003184]">
                   <span>{tripType === "roundtrip" ? "往路 (行き) 搭乗日" : "搭乗予定日"}</span>
                   <span className={`px-2 py-0.5 rounded text-[9px] text-white shadow-sm ${isNewFare ? 'bg-emerald-500' : 'bg-slate-400'}`}>
@@ -339,7 +373,6 @@ export default function FlightCalculator() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-start gap-4 mb-4">
               <label className="inline-flex items-center gap-2 text-sm md:text-base font-bold text-slate-600 cursor-pointer">
                 <input type="checkbox" className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
-                {/* ★ 変更箇所: 新運賃ならファースト、旧運賃ならプレミアムと動的に表示変更 */}
                 {isFirstClassOnly ? (isNewFare ? "ファーストクラスのみ" : "プレミアムクラスのみ") : "普通席/エコノミークラスのみ"}
               </label>
             </div>
