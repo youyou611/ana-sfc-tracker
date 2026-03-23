@@ -119,11 +119,19 @@ export default function ClientLayout({
         </div>
       </aside>
 
+      {/* 固定ヘッダー（全ページ共通） */}
+      <header className="fixed inset-x-0 top-0 h-16 bg-white/95 border-b border-slate-200 backdrop-blur-md z-40">
+        <div className="max-w-6xl mx-auto h-full px-4 md:px-8 flex items-center justify-between gap-3">
+          <a href="/" className="text-base md:text-lg font-black tracking-tight text-[#003184] hover:text-blue-600 transition-colors">Flight Tracker</a>
+          <span className="text-xs text-slate-500">PP管理＆フライト記録ツール</span>
+        </div>
+      </header>
+
       {/* メインコンテンツエリア 
         サイドバーの幅に合わせて左マージンをアニメーションさせる
       */}
       <main 
-        className={`flex-1 w-full relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isSidebarOpen ? "ml-72" : "ml-20"}`}
+        className={`flex-1 w-full relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ${isSidebarOpen ? "ml-72" : "ml-20"} pt-16`}
       >
         {children}
       </main>
