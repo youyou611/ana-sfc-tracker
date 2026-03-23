@@ -88,11 +88,14 @@ export default function FlightCalculator() {
   
   const [manualDistance, setManualDistance] = useState<number>(0); 
   // デフォルト運賃をプレミアム系にしやすいよう調整
-  const [fareKey, setFareKey] = useState("p_simple"); 
+  const [fareKey, setFareKey] = useState("old_fare7"); 
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
 
   const returnDateRef = useRef<HTMLInputElement>(null);
+
+  // デフォルト運賃キーの取得
+  const getDefaultFareKey = () => isNewFare ? "p_c" : "old_fare7";
 
   // 簡易マイレージテーブル
   const mileageTable: { [key: string]: { [key: string]: number } } = {
@@ -107,17 +110,24 @@ export default function FlightCalculator() {
 
   const getDistance = (from: string, to: string) => mileageTable[from]?.[to] || mileageTable[to]?.[from] || 0;
 
-  // 運賃定義：120%のプレミアムシンプルを追加し、計算順序の問題を解消
+  // 運賃定義：ANA新運賃体系（2025年5月19日～）
   const fareTypes: { [key: string]: { label: string, rate: number, bonus: number } } = isNewFare ? {
-    "p_flex": { label: "プレミアム運賃 (150%)", rate: 1.5, bonus: 400 },
-    "p_value": { label: "プレミアムバリュー (125%)", rate: 1.25, bonus: 400 },
-    "p_simple": { label: "プレミアムシンプル (120%)", rate: 1.20, bonus: 400 }, // 伊丹那覇2173ppを実現するレート
-    "flex": { label: "フレックス / 運賃1 (100%)", rate: 1.0, bonus: 400 },
-    "value": { label: "バリュー / 運賃2 (75%)", rate: 0.75, bonus: 400 },
-    "value_transit": { label: "バリュートランジット / 運賃6 (75%)", rate: 0.75, bonus: 200 },
-    "super_value": { label: "スーパーバリュー / 運賃7 (75%)", rate: 0.75, bonus: 0 },
-    "simple": { label: "シンプル / 運賃8相当 (70%)", rate: 0.70, bonus: 0 },
-    "sale": { label: "セール / 運賃8 (50%)", rate: 0.5, bonus: 0 },
+    "p_a": { label: "運賃A:ファーストクラス フレックス/Biz (150%)", rate: 1.50, bonus: 400 },
+    "p_b": { label: "運賃B:ファーストクラス スタンダード (130%)", rate: 1.30, bonus: 400 },
+    "p_c": { label: "運賃C:ファーストクラス シンプル (120%)", rate: 1.20, bonus: 400 },
+    "e_d": { label: "運賃D:エコノミークラス フレックス/Biz (100%)", rate: 1.0, bonus: 400 },
+    "e_e_first": { label: "運賃E:ファーストクラス セール (100%)", rate: 1.0, bonus: 0 },
+    "e_e_eco": { label: "運賃E:エコノミークラス セール (100%)", rate: 1.0, bonus: 0 },
+    "e_g": { label: "運賃G:エコノミークラス 株主優待割引 (80%)", rate: 0.80, bonus: 400 },
+    "e_h": { label: "運賃H:エコノミークラス スタンダード (80%)", rate: 0.80, bonus: 200 },
+    "e_i": { label: "運賃I:エコノミークラス シンプル (70%)", rate: 0.70, bonus: 100 },
+    "e_j": { label: "運賃J:エコノミークラス セール/ユース/シニア (50%)", rate: 0.50, bonus: 0 },
+    "e_k": { label: "運賃K:エコノミークラス 包括旅行割引 (30%)", rate: 0.30, bonus: 0 },
+    "e_l": { label: "運賃L:ファーストクラス フレックス 国際線接続 (150%)", rate: 1.50, bonus: 0 },
+    "e_m": { label: "運賃M:エコノミークラス フレックス 国際線接続 (100%)", rate: 1.0, bonus: 0 },
+    "e_n": { label: "運賃N:エコノミークラス 国際線接続 (70%)", rate: 0.70, bonus: 0 },
+    "e_o": { label: "運賃O:エコノミークラス 国際線接続 (50%)", rate: 0.50, bonus: 0 },
+    "e_p": { label: "運賃P:エコノミークラス 国際線接続 (30%)", rate: 0.30, bonus: 0 },
   } : {
     "old_fare1_3": { label: "運賃1〜3 (プレミアム等 125%)", rate: 1.25, bonus: 400 },
     "old_fare4": { label: "運賃4 (ANA FLEX等 100%)", rate: 1.0, bonus: 400 },
@@ -133,14 +143,14 @@ export default function FlightCalculator() {
   }, [origin, via, destination]);
 
   useEffect(() => {
-    const defaultKey = isNewFare ? "p_simple" : "old_fare7";
+    const defaultKey = getDefaultFareKey();
     const fare = fareTypes[fareKey] || fareTypes[defaultKey];
     setBoardingBonus(fare?.bonus || 0);
   }, [fareKey, isNewFare]);
 
   // PP計算ロジック（修正済：2倍してから切り捨て）
   const calculateBasePP = () => {
-    const defaultKey = isNewFare ? "p_simple" : "old_fare7";
+    const defaultKey = getDefaultFareKey();
     const fare = fareTypes[fareKey] || fareTypes[defaultKey];
     
     const dist1 = getDistance(origin, via);
@@ -172,7 +182,7 @@ export default function FlightCalculator() {
   const ppUnitPrice = totalPP > 0 ? (ticketPrice / totalPP).toFixed(1) : "0.0";
 
   const switchToOldFare = () => { setIsNewFare(false); setFareKey("old_fare7"); };
-  const switchToNewFare = () => { setIsNewFare(true); setFareKey("p_simple"); };
+  const switchToNewFare = () => { setIsNewFare(true); setFareKey("p_c"); };
 
   const handleSwapRoute = () => {
     const tempOrigin = origin;
