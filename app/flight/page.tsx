@@ -91,11 +91,9 @@ export default function FlightCalculator() {
   const [fareKey, setFareKey] = useState("old_fare7"); 
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
+  const [isFirstClassOnly, setIsFirstClassOnly] = useState(false);
 
   const returnDateRef = useRef<HTMLInputElement>(null);
-
-  // デフォルト運賃キーの取得
-  const getDefaultFareKey = () => isNewFare ? "p_c" : "old_fare7";
 
   // 簡易マイレージテーブル
   const mileageTable: { [key: string]: { [key: string]: number } } = {
@@ -110,38 +108,47 @@ export default function FlightCalculator() {
 
   const getDistance = (from: string, to: string) => mileageTable[from]?.[to] || mileageTable[to]?.[from] || 0;
 
+  const getAvailableFareKeys = () =>
+    Object.keys(fareTypes).filter(k => fareTypes[k].classType === (isFirstClassOnly ? "first" : "economy"));
+
+  const getDefaultFareKey = () => {
+    const keys = getAvailableFareKeys();
+    if (keys.length > 0) return keys[0];
+    return isNewFare ? "p_c" : "old_fare7";
+  };
+
   // 運賃定義：ANA新運賃体系（2025年5月19日～）
-  const fareTypes: { [key: string]: { label: string, rate: number, bonus: number } } = isNewFare ? {
-    "p_a": { label: "運賃A:ファーストクラス フレックス/Biz (150%)", rate: 1.50, bonus: 400 },
-    "p_b": { label: "運賃B:ファーストクラス スタンダード (130%)", rate: 1.30, bonus: 400 },
-    "p_c": { label: "運賃C:ファーストクラス シンプル (120%)", rate: 1.20, bonus: 400 },
-    "e_d": { label: "運賃D:エコノミークラス フレックス/Biz (100%)", rate: 1.0, bonus: 400 },
-    "e_e_first": { label: "運賃E:ファーストクラス セール (100%)", rate: 1.0, bonus: 0 },
-    "e_e_eco": { label: "運賃E:エコノミークラス セール (100%)", rate: 1.0, bonus: 0 },
-    "e_g": { label: "運賃G:エコノミークラス 株主優待割引 (80%)", rate: 0.80, bonus: 400 },
-    "e_h": { label: "運賃H:エコノミークラス スタンダード (80%)", rate: 0.80, bonus: 200 },
-    "e_i": { label: "運賃I:エコノミークラス シンプル (70%)", rate: 0.70, bonus: 100 },
-    "e_j": { label: "運賃J:エコノミークラス セール/ユース/シニア (50%)", rate: 0.50, bonus: 0 },
-    "e_k": { label: "運賃K:エコノミークラス 包括旅行割引 (30%)", rate: 0.30, bonus: 0 },
-    "e_l": { label: "運賃L:ファーストクラス フレックス 国際線接続 (150%)", rate: 1.50, bonus: 0 },
-    "e_m": { label: "運賃M:エコノミークラス フレックス 国際線接続 (100%)", rate: 1.0, bonus: 0 },
-    "e_n": { label: "運賃N:エコノミークラス 国際線接続 (70%)", rate: 0.70, bonus: 0 },
-    "e_o": { label: "運賃O:エコノミークラス 国際線接続 (50%)", rate: 0.50, bonus: 0 },
-    "e_p": { label: "運賃P:エコノミークラス 国際線接続 (30%)", rate: 0.30, bonus: 0 },
+  const fareTypes: { [key: string]: { label: string, rate: number, bonus: number, classType: "first" | "economy" } } = isNewFare ? {
+    "p_a": { label: "運賃A:ファーストクラス フレックス/Biz (150%)", rate: 1.50, bonus: 400, classType: "first" },
+    "p_b": { label: "運賃B:ファーストクラス スタンダード (130%)", rate: 1.30, bonus: 400, classType: "first" },
+    "p_c": { label: "運賃C:ファーストクラス シンプル (120%)", rate: 1.20, bonus: 400, classType: "first" },
+    "e_d": { label: "運賃D:エコノミークラス フレックス/Biz (100%)", rate: 1.0, bonus: 400, classType: "economy" },
+    "e_e_first": { label: "運賃E:ファーストクラス セール (100%)", rate: 1.0, bonus: 0, classType: "first" },
+    "e_e_eco": { label: "運賃E:エコノミークラス セール (100%)", rate: 1.0, bonus: 0, classType: "economy" },
+    "e_g": { label: "運賃G:エコノミークラス 株主優待割引 (80%)", rate: 0.80, bonus: 400, classType: "economy" },
+    "e_h": { label: "運賃H:エコノミークラス スタンダード (80%)", rate: 0.80, bonus: 200, classType: "economy" },
+    "e_i": { label: "運賃I:エコノミークラス シンプル (70%)", rate: 0.70, bonus: 100, classType: "economy" },
+    "e_j": { label: "運賃J:エコノミークラス セール/ユース/シニア (50%)", rate: 0.50, bonus: 0, classType: "economy" },
+    "e_k": { label: "運賃K:エコノミークラス 包括旅行割引 (30%)", rate: 0.30, bonus: 0, classType: "economy" },
+    "e_l": { label: "運賃L:ファーストクラス フレックス 国際線接続 (150%)", rate: 1.50, bonus: 0, classType: "first" },
+    "e_m": { label: "運賃M:エコノミークラス フレックス 国際線接続 (100%)", rate: 1.0, bonus: 0, classType: "economy" },
+    "e_n": { label: "運賃N:エコノミークラス 国際線接続 (70%)", rate: 0.70, bonus: 0, classType: "economy" },
+    "e_o": { label: "運賃O:エコノミークラス 国際線接続 (50%)", rate: 0.50, bonus: 0, classType: "economy" },
+    "e_p": { label: "運賃P:エコノミークラス 国際線接続 (30%)", rate: 0.30, bonus: 0, classType: "economy" },
   } : {
-    "old_fare1": { label: "運賃1:プレミアム運賃/Biz (150%)", rate: 1.50, bonus: 400 },
-    "old_fare2": { label: "運賃2:ANA VALUE PREMIUM 3/SUPER VALUE PREMIUM28 (125%)", rate: 1.25, bonus: 400 },
-    "old_fare3": { label: "運賃3:ANA FLEX/Biz/小児運賃 (100%)", rate: 1.0, bonus: 400 },
-    "old_fare4": { label: "運賃4:各種アイきっぷ (100%)", rate: 1.0, bonus: 0 },
-    "old_fare5": { label: "運賃5:ANA VALUE 1/3/7/株主優待割引 (75%)", rate: 0.75, bonus: 400 },
-    "old_fare6": { label: "運賃6:ANA VALUE TRANSIT (75%)", rate: 0.75, bonus: 200 },
-    "old_fare7": { label: "運賃7:ANA SUPER VALUE 21/28/45/55/75 (75%)", rate: 0.75, bonus: 0 },
-    "old_fare8": { label: "運賃8:個人包括旅行/スマートU25/ANA SUPER VALUE SALE (50%)", rate: 0.50, bonus: 0 },
-    "old_fare9": { label: "運賃9:国際航空券 プレミアムクラス (150%)", rate: 1.50, bonus: 0 },
-    "old_fare10": { label: "運賃10:国際航空券 普通席 Y/B/M (100%)", rate: 1.0, bonus: 0 },
-    "old_fare11": { label: "運賃11:国際航空券 普通席 U/H/Q (70%)", rate: 0.70, bonus: 0 },
-    "old_fare12": { label: "運賃12:国際航空券 普通席 V/W/S (50%)", rate: 0.50, bonus: 0 },
-    "old_fare13": { label: "運賃13:国際航空券 普通席 L/K (30%)", rate: 0.30, bonus: 0 },
+    "old_fare1": { label: "運賃1:プレミアム運賃/Biz (150%)", rate: 1.50, bonus: 400, classType: "first" },
+    "old_fare2": { label: "運賃2:ANA VALUE PREMIUM 3/SUPER VALUE PREMIUM28 (125%)", rate: 1.25, bonus: 400, classType: "first" },
+    "old_fare3": { label: "運賃3:ANA FLEX/Biz/小児運賃 (100%)", rate: 1.0, bonus: 400, classType: "first" },
+    "old_fare4": { label: "運賃4:各種アイきっぷ (100%)", rate: 1.0, bonus: 0, classType: "economy" },
+    "old_fare5": { label: "運賃5:ANA VALUE 1/3/7/株主優待割引 (75%)", rate: 0.75, bonus: 400, classType: "economy" },
+    "old_fare6": { label: "運賃6:ANA VALUE TRANSIT (75%)", rate: 0.75, bonus: 200, classType: "economy" },
+    "old_fare7": { label: "運賃7:ANA SUPER VALUE 21/28/45/55/75 (75%)", rate: 0.75, bonus: 0, classType: "economy" },
+    "old_fare8": { label: "運賃8:個人包括旅行/スマートU25/ANA SUPER VALUE SALE (50%)", rate: 0.50, bonus: 0, classType: "economy" },
+    "old_fare9": { label: "運賃9:国際航空券 プレミアムクラス (150%)", rate: 1.50, bonus: 0, classType: "first" },
+    "old_fare10": { label: "運賃10:国際航空券 普通席 Y/B/M (100%)", rate: 1.0, bonus: 0, classType: "economy" },
+    "old_fare11": { label: "運賃11:国際航空券 普通席 U/H/Q (70%)", rate: 0.70, bonus: 0, classType: "economy" },
+    "old_fare12": { label: "運賃12:国際航空券 普通席 V/W/S (50%)", rate: 0.50, bonus: 0, classType: "economy" },
+    "old_fare13": { label: "運賃13:国際航空券 普通席 L/K (30%)", rate: 0.30, bonus: 0, classType: "economy" },
   };
 
   useEffect(() => {
@@ -154,6 +161,13 @@ export default function FlightCalculator() {
     const fare = fareTypes[fareKey] || fareTypes[defaultKey];
     setBoardingBonus(fare?.bonus || 0);
   }, [fareKey, isNewFare]);
+
+  useEffect(() => {
+    const available = getAvailableFareKeys();
+    if (available.length > 0 && !available.includes(fareKey)) {
+      setFareKey(available[0]);
+    }
+  }, [isFirstClassOnly, isNewFare, fareKey]);
 
   // PP計算ロジック（修正済：2倍してから切り捨て）
   const calculateBasePP = () => {
@@ -188,8 +202,14 @@ export default function FlightCalculator() {
   const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
   const ppUnitPrice = totalPP > 0 ? (ticketPrice / totalPP).toFixed(1) : "0.0";
 
-  const switchToOldFare = () => { setIsNewFare(false); setFareKey("old_fare7"); };
-  const switchToNewFare = () => { setIsNewFare(true); setFareKey("p_c"); };
+  const switchToOldFare = () => {
+    setIsNewFare(false);
+    setFareKey(isFirstClassOnly ? "old_fare1" : "old_fare5");
+  };
+  const switchToNewFare = () => {
+    setIsNewFare(true);
+    setFareKey(isFirstClassOnly ? "p_a" : "e_d");
+  };
 
   const handleSwapRoute = () => {
     const tempOrigin = origin;
@@ -349,9 +369,13 @@ export default function FlightCalculator() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-6">
               <div>
+                <label className="inline-flex items-center gap-2 text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  <input type="checkbox" className="h-4 w-4" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
+                  <span>{isFirstClassOnly ? "ファーストクラスのみ" : "エコノミークラスのみ"}</span>
+                </label>
                 <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">運賃種別</label>
                 <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={fareKey} onChange={(e) => setFareKey(e.target.value)}>
-                  {Object.keys(fareTypes).map(k => <option key={k} value={k}>{fareTypes[k].label}</option>)}
+                  {getAvailableFareKeys().map(k => <option key={k} value={k}>{fareTypes[k].label}</option>)}
                 </select>
               </div>
               <div>
