@@ -27,30 +27,33 @@ const domAirports = [
 ];
 
 const intlAirports = [
-  // 主要ハブ
-  { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" },
-  // アジア・オセアニア (路線倍率 1.5倍)
-  { code: "SIN", name: "シンガポール" }, { code: "KUL", name: "クアラルンプール" },
-  { code: "BKK", name: "バンコク" }, { code: "SYD", name: "シドニー" },
-  { code: "CGK", name: "クアラルンプール" }, { code: "SGN", name: "ジャカルタ" },
-  { code: "HAN", name: "ホーチミン" }, { code: "TPE", name: "台北(桃園)" },
-  { code: "TSA", name: "台北(松山)" }, { code: "HKG", name: "香港" },
-  { code: "GMP", name: "台北(松山)" }, { code: "ICN", name: "ソウル(仁川)" },
-  { code: "GMP", name: "ソウル(金浦)" }, { code: "PEK", name: "北京" },
-  { code: "PVG", name: "北京" }, { code: "SHA", name: "上海(浦東)" },
-  { code: "DEL", name: "デリー" }, { code: "BOM", name: "ムンバイ" },
-  { code: "PER", name: "パース" },
-  // ハワイ・北米・欧州・その他 (路線倍率 1.0倍)
-  { code: "HNL", name: "ホノルル" }, { code: "LAX", name: "ロサンゼルス" },
-  { code: "SFO", name: "サンフランシスコ" }, { code: "JFK", name: "ニューヨーク(JFK)" },
-  { code: "ORD", name: "サンフランシスコ" }, { code: "SEA", name: "シアトル" },
-  { code: "IAD", name: "シアトル" }, { code: "YVR", name: "シアトル" },
-  { code: "LHR", name: "ロンドン(ヒースロー)" }, { code: "CDG", name: "ロンドン(ヒースロー)" },
-  { code: "FRA", name: "フランクフルト" }, { code: "MUC", name: "ミュンヘン" },
-  { code: "VIE", name: "ミュンヘン" }, { code: "PAR", name: "パリ" },
+  // 日本の出発地
+  { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" }, { code: "KIX", name: "大阪(関西)" },
+  // 北米・中南米・ハワイ (1.0倍)
+  { code: "LAX", name: "ロサンゼルス" }, { code: "SFO", name: "サンフランシスコ" }, { code: "SEA", name: "シアトル" },
+  { code: "ORD", name: "シカゴ" }, { code: "JFK", name: "ニューヨーク" }, { code: "IAD", name: "ワシントンD.C." },
+  { code: "IAH", name: "ヒューストン" }, { code: "YVR", name: "バンクーバー" }, { code: "HNL", name: "ホノルル" },
+  { code: "MEX", name: "メキシコシティ" },
+  // ヨーロッパ (1.0倍)
+  { code: "LHR", name: "ロンドン" }, { code: "CDG", name: "パリ" }, { code: "FRA", name: "フランクフルト" },
+  { code: "MUC", name: "ミュンヘン" }, { code: "VIE", name: "ウィーン" }, { code: "MXP", name: "ミラノ" },
+  { code: "ARN", name: "ストックホルム" }, { code: "IST", name: "イスタンブール" }, { code: "BRU", name: "ブリュッセル" },
+  // アジア・オセアニア (1.5倍)
+  { code: "SIN", name: "シンガポール" }, { code: "BKK", name: "バンコク" }, { code: "SGN", name: "ホーチミン" },
+  { code: "HAN", name: "ハノイ" }, { code: "CGK", name: "ジャカルタ" }, { code: "MNL", name: "マニラ" },
+  { code: "KUL", name: "クアラルンプール" }, { code: "DEL", name: "デリー" }, { code: "BOM", name: "ムンバイ" },
+  { code: "SYD", name: "シドニー" }, { code: "PER", name: "パース" }, { code: "GMP", name: "ソウル(金浦)" },
+  { code: "ICN", name: "ソウル(仁川)" }, { code: "TSA", name: "台北(松山)" }, { code: "TPE", name: "台北(桃園)" },
+  { code: "PEK", name: "北京" }, { code: "PVG", name: "上海(浦東)" }, { code: "SHA", name: "上海(虹橋)" },
+  { code: "CAN", name: "広州" }, { code: "SZX", name: "深圳" }, { code: "HKG", name: "香港" },
+  { code: "TAO", name: "青島" }, { code: "DLC", name: "大連" }, { code: "HGH", name: "杭州" }
 ];
 
-const asiaOceaniaCodes = ["SIN", "KUL", "BKK", "SYD", "CGK", "SGN", "HAN", "TPE", "TSA", "HKG", "ICN", "GMP", "PEK", "PVG", "SHA", "DEL", "BOM", "PER"];
+// アジア・オセアニア路線のコードリスト（路線倍率 1.5倍の判定用）
+const asiaOceaniaCodes = [
+  "SIN", "BKK", "SGN", "HAN", "CGK", "MNL", "KUL", "DEL", "BOM", "SYD", "PER", 
+  "GMP", "ICN", "TSA", "TPE", "PEK", "PVG", "SHA", "CAN", "SZX", "HKG", "TAO", "DLC", "HGH"
+];
 
 // --- 共通コンポーネント ---
 const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, isIntl = false }: { label: string, value: string, onChange: (val: string) => void, allowEmpty?: boolean, isIntl?: boolean }) => {
@@ -185,8 +188,20 @@ export default function FlightCalculator() {
 
   // --- 国際線マイレージテーブル (TPM) ---
   const intlMileageTable: { [key: string]: { [key: string]: number } } = {
-    HND: { SIN: 3312, KUL: 3338, BKK: 2869, SYD: 4863, HNL: 3831, LAX: 5451, SFO: 5160, JFK: 6772, LHR: 6214, FRA: 5928, TPE: 1330, HKG: 1805, ICN: 758, PEK: 1313, DEL: 3655, PER: 4908, CGK: 3612 },
-    NRT: { SIN: 3324, KUL: 3350, BKK: 2881, SYD: 4858, HNL: 3819, LAX: 5451, SFO: 5124, JFK: 6723, LHR: 5974, FRA: 5854, TPE: 1356, HKG: 1842, ICN: 783, PEK: 1324, DEL: 3661, PER: 4920, CGK: 3624 },
+    HND: { 
+      LAX: 5451, SFO: 5160, SEA: 4769, ORD: 6305, JFK: 6772, IAD: 6752, IAH: 6643, YVR: 4703, HNL: 3831, 
+      LHR: 6214, CDG: 6033, FRA: 5928, MUC: 5860, VIE: 5699, MXP: 6055, ARN: 5074, IST: 5564, 
+      SIN: 3312, BKK: 2869, SGN: 2706, CGK: 3612, MNL: 1880, KUL: 3338, DEL: 3655, SYD: 4863, 
+      GMP: 735, ICN: 758, TSA: 1330, PEK: 1313, SHA: 1093, PVG: 1109, CAN: 1821, SZX: 1807, HKG: 1805, TAO: 1084, DLC: 1030
+    },
+    NRT: { 
+      LAX: 5451, SFO: 5124, ORD: 6274, MEX: 7003, HNL: 3819, BRU: 5936, 
+      SIN: 3324, BKK: 2881, SGN: 2715, HAN: 2276, CGK: 3624, MNL: 1892, KUL: 3350, BOM: 4192, PER: 4920, 
+      PVG: 1118, HGH: 1205, DLC: 1040
+    },
+    KIX: {
+      PVG: 823, PEK: 1094
+    }
   };
 
   const getDomDistance = (from: string, to: string) => domMileageTable[from]?.[to] || domMileageTable[to]?.[from] || 0;
@@ -298,7 +313,7 @@ export default function FlightCalculator() {
   };
 
   const basePP = flightMode === "domestic" ? calculateDomPP() : calculateIntlPP();
-  const totalPP = flightMode === "domestic" ? (tripType === "roundtrip" ? basePP * 2 : basePP) : (tripType === "roundtrip" ? basePP * 2 : basePP);
+  const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
   const currentPrice = flightMode === "domestic" ? ticketPrice : intlTicketPrice;
   const ppUnitPrice = totalPP > 0 ? (currentPrice / totalPP).toFixed(1) : "0.0";
 
@@ -383,10 +398,7 @@ export default function FlightCalculator() {
         
         <header className="flex flex-col md:flex-row md:justify-between md:items-center border-b border-slate-200 pb-6 gap-4">
           <div>
-            <Link href="/" className="text-xl font-black tracking-tight text-[#003184] hover:text-blue-700 transition-colors">
-              Flight Tracker
-            </Link>
-            <p className="text-sm text-slate-500">PP フライトシミュレーター</p>
+            <h1 className="text-xl font-bold tracking-tight text-[#003184]">PP フライトシミュレーター</h1>
           </div>
           <Link href="/" className="inline-flex items-center text-xs font-bold text-slate-500 hover:text-[#003184] transition-colors bg-white px-4 py-2 rounded-lg shadow-sm border border-slate-200">
             ← ダッシュボードへ戻る
