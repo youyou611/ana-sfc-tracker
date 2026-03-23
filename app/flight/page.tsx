@@ -129,12 +129,19 @@ export default function FlightCalculator() {
     "e_o": { label: "運賃O:エコノミークラス 国際線接続 (50%)", rate: 0.50, bonus: 0 },
     "e_p": { label: "運賃P:エコノミークラス 国際線接続 (30%)", rate: 0.30, bonus: 0 },
   } : {
-    "old_fare1_3": { label: "運賃1〜3 (プレミアム等 125%)", rate: 1.25, bonus: 400 },
-    "old_fare4": { label: "運賃4 (ANA FLEX等 100%)", rate: 1.0, bonus: 400 },
-    "old_fare5": { label: "運賃5 (ANA VALUE等 75%)", rate: 0.75, bonus: 400 },
-    "old_fare6": { label: "運賃6 (バリュートランジット 75%)", rate: 0.75, bonus: 200 },
-    "old_fare7": { label: "運賃7 (SUPER VALUE等 75%)", rate: 0.75, bonus: 0 },
-    "old_fare8": { label: "運賃8 (SV SALE等 50%)", rate: 0.5, bonus: 0 },
+    "old_fare1": { label: "運賃1:プレミアム運賃/Biz (150%)", rate: 1.50, bonus: 400 },
+    "old_fare2": { label: "運賃2:ANA VALUE PREMIUM 3/SUPER VALUE PREMIUM28 (125%)", rate: 1.25, bonus: 400 },
+    "old_fare3": { label: "運賃3:ANA FLEX/Biz/小児運賃 (100%)", rate: 1.0, bonus: 400 },
+    "old_fare4": { label: "運賃4:各種アイきっぷ (100%)", rate: 1.0, bonus: 0 },
+    "old_fare5": { label: "運賃5:ANA VALUE 1/3/7/株主優待割引 (75%)", rate: 0.75, bonus: 400 },
+    "old_fare6": { label: "運賃6:ANA VALUE TRANSIT (75%)", rate: 0.75, bonus: 200 },
+    "old_fare7": { label: "運賃7:ANA SUPER VALUE 21/28/45/55/75 (75%)", rate: 0.75, bonus: 0 },
+    "old_fare8": { label: "運賃8:個人包括旅行/スマートU25/ANA SUPER VALUE SALE (50%)", rate: 0.50, bonus: 0 },
+    "old_fare9": { label: "運賃9:国際航空券 プレミアムクラス (150%)", rate: 1.50, bonus: 0 },
+    "old_fare10": { label: "運賃10:国際航空券 普通席 Y/B/M (100%)", rate: 1.0, bonus: 0 },
+    "old_fare11": { label: "運賃11:国際航空券 普通席 U/H/Q (70%)", rate: 0.70, bonus: 0 },
+    "old_fare12": { label: "運賃12:国際航空券 普通席 V/W/S (50%)", rate: 0.50, bonus: 0 },
+    "old_fare13": { label: "運賃13:国際航空券 普通席 L/K (30%)", rate: 0.30, bonus: 0 },
   };
 
   useEffect(() => {
