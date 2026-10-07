@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { getDomBaseMiles } from "./domesticMileage";
+import { INTL_AIRPORTS, INTL_REGIONS, getIntlBaseMiles, getIntlRegion, getIntlRouteMultiplier } from "./internationalMileage";
 
 // --- 空港データの定義 ---
-const domAirports = [
+const domAirports: { code: string; name: string; region?: string }[] = [
   { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" },
   { code: "ITM", name: "大阪(伊丹)" }, { code: "KIX", name: "大阪(関西)" }, { code: "UKB", name: "神戸" },
   { code: "NGO", name: "名古屋(中部)" }, { code: "CTS", name: "札幌(新千歳)" },
@@ -23,37 +25,16 @@ const domAirports = [
   { code: "KCZ", name: "高知" }, { code: "KKJ", name: "北九州" }, { code: "HSG", name: "佐賀" }, 
   { code: "OIT", name: "大分" }, { code: "KMJ", name: "熊本" }, { code: "NGS", name: "長崎" }, 
   { code: "KMI", name: "宮崎" }, { code: "KOJ", name: "鹿児島" }, { code: "FUJ", name: "五島福江" },
-  { code: "TSJ", name: "対馬" }
+  { code: "TSJ", name: "対馬" },
+  // ANAマイレージチャートに掲載されている就航地 (追加分)
+  { code: "SHB", name: "根室中標津" }, { code: "MBE", name: "オホーツク紋別" }, { code: "FSZ", name: "静岡" },
+  { code: "AXJ", name: "天草" }, { code: "KUM", name: "屋久島" }, { code: "IKI", name: "壱岐" },
+  { code: "TNE", name: "種子島" }, { code: "KKX", name: "喜界島" }, { code: "RNJ", name: "与論" },
+  { code: "ASJ", name: "奄美" }, { code: "TKN", name: "徳之島" }, { code: "OKE", name: "沖永良部" }
 ];
 
-const intlAirports = [
-  // 日本の出発地
-  { code: "HND", name: "東京(羽田)" }, { code: "NRT", name: "東京(成田)" }, { code: "KIX", name: "大阪(関西)" },
-  // 北米・中南米・ハワイ (1.0倍)
-  { code: "LAX", name: "ロサンゼルス" }, { code: "SFO", name: "サンフランシスコ" }, { code: "SEA", name: "シアトル" },
-  { code: "ORD", name: "シカゴ" }, { code: "JFK", name: "ニューヨーク" }, { code: "IAD", name: "ワシントンD.C." },
-  { code: "IAH", name: "ヒューストン" }, { code: "YVR", name: "バンクーバー" }, { code: "HNL", name: "ホノルル" },
-  { code: "MEX", name: "メキシコシティ" },
-  // ヨーロッパ (1.0倍)
-  { code: "LHR", name: "ロンドン" }, { code: "CDG", name: "パリ" }, { code: "FRA", name: "フランクフルト" },
-  { code: "MUC", name: "ミュンヘン" }, { code: "VIE", name: "ウィーン" }, { code: "MXP", name: "ミラノ" },
-  { code: "ARN", name: "ストックホルム" }, { code: "IST", name: "イスタンブール" }, { code: "BRU", name: "ブリュッセル" },
-  // アジア・オセアニア (1.5倍)
-  { code: "SIN", name: "シンガポール" }, { code: "BKK", name: "バンコク" }, { code: "SGN", name: "ホーチミン" },
-  { code: "HAN", name: "ハノイ" }, { code: "CGK", name: "ジャカルタ" }, { code: "MNL", name: "マニラ" },
-  { code: "KUL", name: "クアラルンプール" }, { code: "DEL", name: "デリー" }, { code: "BOM", name: "ムンバイ" },
-  { code: "SYD", name: "シドニー" }, { code: "PER", name: "パース" }, { code: "GMP", name: "ソウル(金浦)" },
-  { code: "ICN", name: "ソウル(仁川)" }, { code: "TSA", name: "台北(松山)" }, { code: "TPE", name: "台北(桃園)" },
-  { code: "PEK", name: "北京" }, { code: "PVG", name: "上海(浦東)" }, { code: "SHA", name: "上海(虹橋)" },
-  { code: "CAN", name: "広州" }, { code: "SZX", name: "深圳" }, { code: "HKG", name: "香港" },
-  { code: "TAO", name: "青島" }, { code: "DLC", name: "大連" }, { code: "HGH", name: "杭州" }
-];
-
-// アジア・オセアニア路線のコードリスト（路線倍率 1.5倍の判定用）
-const asiaOceaniaCodes = [
-  "SIN", "BKK", "SGN", "HAN", "CGK", "MNL", "KUL", "DEL", "BOM", "SYD", "PER", 
-  "GMP", "ICN", "TSA", "TPE", "PEK", "PVG", "SHA", "CAN", "SZX", "HKG", "TAO", "DLC", "HGH"
-];
+// 国際線の空港・路線倍率・区間基本マイルは ./internationalMileage.ts (ANA公式マイレージチャート) を参照
+const intlAirports: { code: string; name: string; region?: string }[] = INTL_AIRPORTS;
 
 // --- 共通コンポーネント ---
 const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, isIntl = false }: { label: string, value: string, onChange: (val: string) => void, allowEmpty?: boolean, isIntl?: boolean }) => {
@@ -89,12 +70,20 @@ const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, i
               直行便 (経由なし)
             </li>
           )}
-          {filtered.map(a => (
-            <li key={a.code} className="p-3 text-sm cursor-pointer hover:bg-blue-50 flex justify-between items-center group" onClick={() => onChange(a.code)}>
-              <span className="font-bold text-slate-700 group-hover:text-[#003184]">{a.name}</span>
-              <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded">{a.code}</span>
-            </li>
-          ))}
+          {filtered.map((a, idx) => {
+            const regionKey = isIntl ? a.region : undefined;
+            const showHeader = !!regionKey && (idx === 0 || filtered[idx - 1].region !== regionKey);
+            const headerLabel = regionKey === "japan" ? "日本" : regionKey ? `${INTL_REGIONS[regionKey as keyof typeof INTL_REGIONS].label}  (路線倍率 ${INTL_REGIONS[regionKey as keyof typeof INTL_REGIONS].multiplier.toFixed(1)}倍)` : "";
+            return (
+              <React.Fragment key={a.code}>
+                {showHeader && <li className="px-3 py-1.5 text-[10px] font-black text-slate-500 bg-slate-100 sticky top-0">{headerLabel}</li>}
+                <li className="p-3 text-sm cursor-pointer hover:bg-blue-50 flex justify-between items-center group" onClick={() => onChange(a.code)}>
+                  <span className="font-bold text-slate-700 group-hover:text-[#003184]">{a.name}</span>
+                  <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded">{a.code}</span>
+                </li>
+              </React.Fragment>
+            );
+          })}
           {filtered.length === 0 && <li className="p-3 text-sm text-slate-400 text-center">見つかりません</li>}
         </ul>
       )}
@@ -175,37 +164,13 @@ export default function FlightCalculator() {
     }
   }, [flightMode, tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly, intlOrigin, intlDestination, intlFareKey, intlTicketPrice, isLoaded]);
 
-  // --- 国内線マイレージテーブル ---
-  const domMileageTable: { [key: string]: { [key: string]: number } } = {
-    HND: { OKA: 984, ISG: 1095, CTS: 510, FUK: 567, ITM: 280, KIX: 280, NGO: 193, KOJ: 601, KMJ: 565, NGS: 610, MYJ: 438, TAK: 354, HIJ: 414, TOY: 176, KMQ: 211, HKD: 424, AKJ: 576 },
-    ITM: { OKA: 739, ISG: 869, CTS: 666, HND: 280, FUK: 282, KOJ: 329, KMJ: 295, NGS: 334, MYJ: 159, KIJ: 246, SDJ: 315, HKD: 536, AKJ: 672 },
-    KIX: { OKA: 739, ISG: 1214, CTS: 666, HND: 280, MMY: 893 },
-    OKA: { HND: 984, ITM: 739, KIX: 739, FUK: 537, ISG: 247, MMY: 177, NGO: 809, CTS: 1397, SDJ: 1130, HIJ: 524, TAK: 574, KMJ: 466 },
-    ISG: { HND: 1095, KIX: 1214, OKA: 247, NGO: 1030, FUK: 715 },
-    CTS: { HND: 510, ITM: 666, KIX: 666, FUK: 882, NGO: 595, SDJ: 335, KIJ: 382, TOY: 442, KMQ: 466, HIJ: 768, OKJ: 729 },
-    FUK: { HND: 567, OKA: 537, CTS: 882, ITM: 282, NGO: 374, SDJ: 665, KIJ: 521, KMQ: 414 }
-  };
+  // --- 国内線マイレージ ---
+  // ANA公式マイレージチャートの区間基本マイルを使用 (./domesticMileage.ts 参照)
+  const getDomDistance = (from: string, to: string) => getDomBaseMiles(from, to);
 
-  // --- 国際線マイレージテーブル (TPM) ---
-  const intlMileageTable: { [key: string]: { [key: string]: number } } = {
-    HND: { 
-      LAX: 5451, SFO: 5160, SEA: 4769, ORD: 6305, JFK: 6772, IAD: 6752, IAH: 6643, YVR: 4703, HNL: 3831, 
-      LHR: 6214, CDG: 6033, FRA: 5928, MUC: 5860, VIE: 5699, MXP: 6055, ARN: 5074, IST: 5564, 
-      SIN: 3312, BKK: 2869, SGN: 2706, CGK: 3612, MNL: 1880, KUL: 3338, DEL: 3655, SYD: 4863, 
-      GMP: 735, ICN: 758, TSA: 1330, PEK: 1313, SHA: 1093, PVG: 1109, CAN: 1821, SZX: 1807, HKG: 1805, TAO: 1084, DLC: 1030
-    },
-    NRT: { 
-      LAX: 5451, SFO: 5124, ORD: 6274, MEX: 7003, HNL: 3819, BRU: 5936, 
-      SIN: 3324, BKK: 2881, SGN: 2715, HAN: 2276, CGK: 3624, MNL: 1892, KUL: 3350, BOM: 4192, PER: 4920, 
-      PVG: 1118, HGH: 1205, DLC: 1040
-    },
-    KIX: {
-      PVG: 823, PEK: 1094
-    }
-  };
-
-  const getDomDistance = (from: string, to: string) => domMileageTable[from]?.[to] || domMileageTable[to]?.[from] || 0;
-  const getIntlDistance = (from: string, to: string) => intlMileageTable[from]?.[to] || intlMileageTable[to]?.[from] || 0;
+  // --- 国際線マイレージ・路線倍率 ---
+  // ANA公式マイレージチャートの区間基本マイルと、地域別の路線倍率を使用 (./internationalMileage.ts 参照)
+  const getIntlDistance = (from: string, to: string) => getIntlBaseMiles(from, to);
 
   // --- 国内線 運賃定義 ---
   const domFareTypes: { [key: string]: { label: string, rate: number, bonus: number, classType: "first" | "economy" } } = isNewFare ? {
@@ -306,12 +271,13 @@ export default function FlightCalculator() {
     const fare = intlFareTypes[intlFareKey];
     if (!fare) return 0;
 
-    // アジア・オセアニアは路線倍率1.5倍、その他は1.0倍
-    const routeMultiplier = (asiaOceaniaCodes.includes(intlOrigin) || asiaOceaniaCodes.includes(intlDestination)) ? 1.5 : 1.0;
+    // 路線倍率は海外側の地域で決まる (アジア・オセアニア・ウラジオストク=1.5倍、北米・欧州など=1.0倍)
+    const routeMultiplier = getIntlRouteMultiplier(intlOrigin, intlDestination);
     
     return Math.floor(intlManualDistance * fare.rate * routeMultiplier) + fare.bonus;
   };
 
+  const intlRegion = getIntlRegion(intlOrigin, intlDestination);
   const basePP = flightMode === "domestic" ? calculateDomPP() : calculateIntlPP();
   const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
   const currentPrice = flightMode === "domestic" ? ticketPrice : intlTicketPrice;
@@ -524,6 +490,16 @@ export default function FlightCalculator() {
                   <SearchableAirportSelect label="日本の出発/到着 空港" value={intlOrigin} onChange={setIntlOrigin} isIntl={true} />
                   <SearchableAirportSelect label="海外の到着/出発 空港" value={intlDestination} onChange={setIntlDestination} isIntl={true} />
                 </div>
+                <p className="text-[11px] font-bold mt-1">
+                  {intlRegion ? (
+                    <span className={getIntlRouteMultiplier(intlOrigin, intlDestination) > 1 ? "text-emerald-600" : "text-slate-500"}>
+                      {INTL_REGIONS[intlRegion].label}路線: 路線倍率 {getIntlRouteMultiplier(intlOrigin, intlDestination).toFixed(1)}倍
+                    </span>
+                  ) : (
+                    <span className="text-amber-600">日本の空港と海外の空港の組み合わせを選んでください</span>
+                  )}
+                  {intlRegion && intlManualDistance === 0 && <span className="text-amber-600 ml-2">※ANAマイレージチャートに掲載のない区間です (マイルは手入力)</span>}
+                </p>
                 <p className="text-[9px] text-slate-400 mt-1">※国際線に含まれる国内区間は、国内線タブを利用して片道ずつ登録してください。</p>
 
                 <div className="p-5 bg-slate-50 rounded-xl border border-slate-200/60 mt-4">
@@ -596,7 +572,7 @@ export default function FlightCalculator() {
                     )
                   ) : (
                     <>
-                      floor({intlManualDistance} × {intlFareTypes[intlFareKey]?.rate} × {(asiaOceaniaCodes.includes(intlOrigin) || asiaOceaniaCodes.includes(intlDestination)) ? "1.5(ｱｼﾞア/ｵｾｱﾆｱ)" : "1.0(その他)"}) ＋ <span className="text-yellow-300 font-bold">{intlFareTypes[intlFareKey]?.bonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
+                      floor({intlManualDistance} × {intlFareTypes[intlFareKey]?.rate} × {getIntlRouteMultiplier(intlOrigin, intlDestination).toFixed(1)}{intlRegion ? `(${INTL_REGIONS[intlRegion].label})` : "(区間不明)"}) ＋ <span className="text-yellow-300 font-bold">{intlFareTypes[intlFareKey]?.bonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
                       <p className="mt-1 text-blue-300/50 text-[9px]">※(TPM × 積算率 × 路線倍率) で端数切り捨て後、ボーナス加算</p>
                     </>
                   )}
