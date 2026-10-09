@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import ClientLayout from './ClientLayout'
 import Script from 'next/script' // ← Next.js専用のスクリプト読み込み機能
@@ -6,6 +6,22 @@ import Script from 'next/script' // ← Next.js専用のスクリプト読み込
 export const metadata: Metadata = {
   title: 'SFC修行トラッカー 2026',
   description: 'ANA SFC修行のプレミアムポイントとフライト履歴を管理するパーソナルツール',
+  applicationName: 'SFC修行トラッカー',
+  // iPhoneで「ホーム画面に追加」したときにアプリとして起動させる設定
+  appleWebApp: {
+    capable: true,
+    title: 'SFCトラッカー',
+    statusBarStyle: 'black-translucent',
+  },
+  formatDetection: { telephone: false },
+}
+
+// スマホのノッチ・ホームバー領域まで描画し、ブラウザUIの色をブランドカラーに合わせる
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#002561',
 }
 
 export default function RootLayout({
