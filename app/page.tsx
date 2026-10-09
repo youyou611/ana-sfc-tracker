@@ -167,7 +167,7 @@ export default function Home() {
       <div className="px-6 -mt-6 relative z-20">
         <motion.button 
           whileTap={{ scale: 0.95 }}
-          onClick={() => router.push('/calc')}
+          onClick={() => router.push(isJal ? '/calc/jal' : '/calc')}
           className="w-full bg-white rounded-2xl p-4 shadow-lg flex items-center justify-between group"
         >
           <div className="flex items-center gap-4">
