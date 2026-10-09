@@ -7,9 +7,9 @@ import { usePathname } from "next/navigation";
 // メニュー定義（サイドバーとボトムタブで共通）
 const NAV_ITEMS = [
   { href: "/", label: "ダッシュボード", shortLabel: "ホーム", iconPath: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" },
-  { href: "/flight", label: "フライト予定・登録", shortLabel: "フライト", iconPath: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8" },
-  { href: "/guide", label: "SFC修行とは？", shortLabel: "ガイド", iconPath: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" },
-  { href: "/backup", label: "設定・バックアップ", shortLabel: "設定", iconPath: "M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" },
+  { href: "/logs", label: "フライト履歴", shortLabel: "フライト", iconPath: "M12 19l9 2-9-18-9 18 9-2zm0 0v-8" },
+  { href: "/calc", label: "PP計算ツール", shortLabel: "計算機", iconPath: "M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" },
+  { href: "/settings", label: "設定・バックアップ", shortLabel: "設定", iconPath: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" },
 ];
 
 export default function ClientLayout({
@@ -84,10 +84,10 @@ export default function ClientLayout({
 
       {/* メインコンテンツエリア */}
       <main className={`flex-1 w-full min-w-0 relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ml-0 ${isOpen ? "md:ml-72" : "md:ml-20"}
-        pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0`}>
+        pb-[calc(7rem+env(safe-area-inset-bottom))] md:pb-0`}>
 
         {/* スマホ用トップバー */}
-        <header className="md:hidden sticky top-0 z-40 bg-[#002561]/95 backdrop-blur text-white pt-[env(safe-area-inset-top)] shadow-md">
+        <header className="md:hidden sticky top-0 z-40 bg-[#002561]/95 backdrop-blur-md text-white pt-[env(safe-area-inset-top)] shadow-md">
           <div className="h-12 px-4 flex items-center justify-between">
             <Link href="/" className="flex items-baseline gap-2">
               <span className="font-black tracking-widest text-sm">SFC TRACKER</span>
@@ -99,32 +99,44 @@ export default function ClientLayout({
         {children}
       </main>
 
-      {/* スマホ用ボトムタブバー */}
+      {/* スマホ用 リキッド・フローティング タブバー */}
       <nav
-        className="md:hidden fixed bottom-0 inset-x-0 z-50 bg-white/95 backdrop-blur border-t border-slate-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] pb-[env(safe-area-inset-bottom)]"
+        className="md:hidden fixed inset-x-0 z-50 flex justify-center pointer-events-none px-4"
+        style={{ bottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))" }}
         aria-label="メインメニュー"
       >
-        <ul className="grid grid-cols-4 h-16">
+        <div className="pointer-events-auto w-full max-w-sm bg-white/80 backdrop-blur-2xl border border-white/60 shadow-[0_12px_36px_rgba(0,37,97,0.18),0_2px_8px_rgba(0,0,0,0.06)] rounded-full p-1.5 flex items-center justify-between gap-1">
           {NAV_ITEMS.map(item => {
             const active = isActive(item.href);
             return (
-              <li key={item.href}>
-                <Link
-                  href={item.href}
-                  className={`h-full flex flex-col items-center justify-center gap-1 transition-colors active:scale-95 ${active ? "text-[#003184]" : "text-slate-400"}`}
-                  aria-current={active ? "page" : undefined}
-                >
-                  <span className={`flex items-center justify-center w-12 h-7 rounded-full transition-colors ${active ? "bg-blue-100" : ""}`}>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2.4 : 2} d={item.iconPath} />
-                    </svg>
-                  </span>
-                  <span className={`text-[10px] leading-none ${active ? "font-black" : "font-bold"}`}>{item.shortLabel}</span>
-                </Link>
-              </li>
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`relative flex-1 flex flex-col items-center justify-center py-2 px-1 rounded-full transition-all duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
+                  active
+                    ? "bg-gradient-to-r from-[#002b70] via-[#003d99] to-[#0050b3] text-white shadow-[0_4px_16px_rgba(0,49,132,0.35)] scale-[1.03]"
+                    : "text-slate-400 hover:text-slate-700 active:scale-90"
+                }`}
+                aria-current={active ? "page" : undefined}
+              >
+                <span className="flex items-center justify-center">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 transition-transform duration-300 ${active ? "scale-110 drop-shadow" : ""}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2.4 : 2} d={item.iconPath} />
+                  </svg>
+                </span>
+                <span className={`text-[10px] mt-0.5 tracking-tight transition-all leading-none ${active ? "font-black" : "font-semibold"}`}>
+                  {item.shortLabel}
+                </span>
+              </Link>
             );
           })}
-        </ul>
+        </div>
       </nav>
     </div>
   );

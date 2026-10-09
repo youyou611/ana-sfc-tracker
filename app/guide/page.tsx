@@ -8,9 +8,36 @@ export default function GuidePage() {
       <div className="max-w-4xl mx-auto space-y-8">
         
         <header className="border-b border-slate-200 pb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-[#003184]">SFC修行ガイド 2026年最新版</h1>
-          <p className="text-slate-500 text-xs mt-2 font-medium">ANAスーパーフライヤーズカード解脱のための基礎知識・最新ルールとツールの使い方</p>
+          <h1 className="text-2xl font-bold tracking-tight text-[#003184]">Ultimate Flight Log & Status Tracker (Beta)</h1>
+          <p className="text-slate-500 text-xs mt-2 font-medium">JAL / ANA ステータス修行 & 航空ファン向けフライト記録アプリ</p>
         </header>
+
+        {/* アプリについて (Beta版) */}
+        <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm space-y-4">
+          <h2 className="text-lg font-bold text-slate-800 border-l-4 border-emerald-500 pl-3">本アプリについて (Beta版)</h2>
+          <p className="text-sm text-slate-600 leading-relaxed">
+            このアプリは、ANAの「SFC修行」およびJALの「JGC修行」を行うステータス修行僧、ならびに搭乗機材や便名などの詳細を記録したい航空ファンのための<strong>Ultimate Flight Log & Status Tracker</strong>です。<br />
+            現在Beta版として提供しており、端末の内部ストレージ（IndexedDB）を使用してデータを保存しています。
+          </p>
+          
+          <div className="mt-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <h3 className="text-sm font-bold text-slate-700 mb-2">🔄 アップデート履歴</h3>
+            <ul className="text-xs text-slate-600 space-y-2">
+              <li className="flex gap-2">
+                <span className="font-mono text-emerald-600 font-bold">2026.10</span>
+                <span>JAL (FOP / LSP) 対応、オタク向けメタデータ（便名・機材・機体記号・座席）の記録機能を追加。IndexedDBへの移行とFramer Motionによるアプリ風UIへの刷新。</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono text-blue-600 font-bold">2026.09</span>
+                <span>ANA SFCの2026年9月発表の改定ルール（SFC LITE / SFC PLUS）についてのガイダンスを追加。国際線の倍率計算機能実装。</span>
+              </li>
+              <li className="flex gap-2">
+                <span className="font-mono text-slate-500 font-bold">2026.08</span>
+                <span>Beta版リリース。PPシミュレーターと国内線記録機能の実装。</span>
+              </li>
+            </ul>
+          </div>
+        </div>
 
         {/* 1. SFCとは？ */}
         <div className="bg-white rounded-xl p-8 border border-slate-200 shadow-sm space-y-6">
@@ -175,8 +202,8 @@ export default function GuidePage() {
             </div>
           </div>
           <div className="pt-4 flex justify-center border-t border-blue-700">
-            <Link href="/" className="px-8 py-3 bg-white text-[#003184] text-sm font-bold rounded-full shadow-md hover:bg-slate-100 transition-colors">
-              ダッシュボードへ戻る
+            <Link href="/settings" className="px-8 py-3 bg-white text-[#003184] text-sm font-bold rounded-full shadow-md hover:bg-slate-100 transition-colors">
+              設定へ戻る
             </Link>
           </div>
         </div>
@@ -184,4 +211,4 @@ export default function GuidePage() {
       </div>
     </div>
   );
-}
+}
