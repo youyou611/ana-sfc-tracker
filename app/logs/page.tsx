@@ -118,7 +118,7 @@ export default function LogsPage() {
       </div>
 
       {/* 画面右下のFAB (Floating Action Button) */}
-      <Link href="/calc" className={`fixed bottom-24 right-6 w-14 h-14 ${isJal ? 'bg-red-700 shadow-red-900/40' : 'bg-[#003184] shadow-[#003184]/40'} text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-30`}>
+      <Link href={isJal ? "/calc/jal" : "/calc"} className={`fixed bottom-24 right-6 w-14 h-14 ${isJal ? 'bg-red-700 shadow-red-900/40' : 'bg-[#003184] shadow-[#003184]/40'} text-white rounded-full shadow-lg flex items-center justify-center hover:scale-105 active:scale-95 transition-all z-30`}>
         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" /></svg>
       </Link>
     </motion.div>
