@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import "../../shared/route-map/WorldRouteMap.css";
+import "@/shared/route-map/WorldRouteMap.css";
 import './globals.css'
 import ClientLayout from './ClientLayout'
 import Script from 'next/script' // ← Next.js専用のスクリプト読み込み機能

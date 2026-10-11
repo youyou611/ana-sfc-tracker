@@ -1,7 +1,7 @@
 "use client";
 
-import SharedWorldRouteMap from "../../../shared/route-map/WorldRouteMap";
-import type { RouteMapFlight } from "../../../shared/route-map/types";
+import SharedWorldRouteMap from "@/shared/route-map/WorldRouteMap";
+import type { RouteMapFlight } from "@/shared/route-map/types";
 import type { FlightLogEx } from "../types";
 
 type Props = { flights: FlightLogEx[]; onSelectFlight: (flight: FlightLogEx) => void };

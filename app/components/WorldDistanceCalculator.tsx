@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import airportRows from "../../../shared/world-airports.json";
+import airportRows from "@/shared/world-airports.json";
 import {
   calculateGreatCircleDistance,
   formatDistance,
