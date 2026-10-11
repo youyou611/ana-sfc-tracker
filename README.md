@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ANA修行トラッカー
 
-## Getting Started
+## 共通路線マップ
 
-First, run the development server:
+地図描画はルートの `shared/route-map/WorldRouteMap.tsx` を使用し、`app/components/WorldRouteMap.tsx` で既存の `FlightLogEx` と共通形式を相互変換します。空港座標はルートの `shared/world-airports.json`、陸地形状はNatural Earth由来の共有SVGパスを使います。フライトIDで元の記録を特定して既存の詳細モーダルを開きます。保存データとANA PPの計算ロジックは変更しません。
+
+型チェック・lint・ビルドはこのアプリのフォルダーから実行できます。`npm run build` は日本語を含むフォルダーパスでTurbopackが内部エラーになる問題を避けるためWebpackを使用します。ビルド・デプロイのコンテキストにはリポジトリルートも含めてください。`next.config.ts` の `outputFileTracingRoot` が共有ソースを含めます。
+
+ANAのプレミアムポイント（PP）、ステータス目標、費用、搭乗記録を管理するANA専用アプリです。
+
+## 機能
+
+- ANA国内線・国際線のPP計算
+- ANA搭乗履歴と費用、PP単価の管理
+- 路線マップで搭乗記録を世界地図と路線一覧から振り返り（年度・キーワード検索、フライト詳細の表示）
+- 目標ステータスと進捗ダッシュボード
+- 旧混在データベースからANA記録を専用データベースへ移行
+- 履歴一覧の機材画像、フライト詳細、個別メモ、端末写真の添付
+
+## 路線マップ
+
+- アプリの「路線マップ」から、ANA搭乗履歴の出発・到着空港を世界地図で確認できます。年度とキーワード（空港コード、便名、機材、日付、メモ）で地図・路線一覧を絞り込めます。
+- 路線一覧の「詳細」から、既存のフライト詳細モーダルを開けます。地図上の路線は選択すると強調表示されます。
+- 表示する距離は空港座標から算出した**大圏距離の概算**です。実際の航跡でもANA公式区間基本マイルでもなく、PP計算や搭乗記録には自動反映されません。
+- 空港データにない空港コードを持つ記録も削除・変更しません。地図に表示できない件数と該当記録の詳細への導線を表示します。
+- 空港データはルートの `shared/world-airports.json` を共通利用します。座標データの出典はOurAirports（公開ドメイン）です。
+
+## 開発
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 担当範囲・作業報告（必読）
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **ANA担当の編集範囲はこの `ANA青組用アプリ/` フォルダ内だけです。** JALアプリ、フライトレコーダー、親フォルダの共有ファイルは、総括担当から明示的な割当がない限り変更しないでください。他担当の作業中の変更を上書きしないでください。
+- 作業開始前に、親の [`PROJECT_PLAN.txt`](../PROJECT_PLAN.txt)、親の [`AI_WORKING_GUIDE.txt`](../AI_WORKING_GUIDE.txt)、このフォルダの [`AI_AGENT_APPOINTMENT_PROMPT.txt`](AI_AGENT_APPOINTMENT_PROMPT.txt) と現在の差分を確認してください。
+- **作業を終えたら `PROGRESS_REPORT.md` を必ず更新し、どこまでやったかを書いてください。** 作業結果（完了／一部完了／未完了）、変更ファイル、実行した検証と結果、未実施の検証、残課題、次の一手、他アプリ・共通仕様への影響を記録してください。検証していない項目を成功扱いにしないこと。
+- 他担当の範囲に変更が必要だと気づいたら、その場で変更せず、理由・ファイル・提案を総括担当へ報告してください。共有方針・決定ログの正本は親の `PROJECT_PLAN.txt` です。担当者は親の正本を独断で編集せず、追記案を総括に渡してください。
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+3アプリ共通の計画は親フォルダーの [`PROJECT_PLAN.txt`](../PROJECT_PLAN.txt)、AI任命プロンプトは [`AI_AGENT_APPOINTMENT_PROMPT.txt`](../AI_AGENT_APPOINTMENT_PROMPT.txt)、共通アーキテクチャは親フォルダーの [`docs/product-architecture.md`](../docs/product-architecture.md) を参照してください。
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+アプリ間同期は未実装です。旧DBから専用DBへの移行時、旧データは削除しません。
+機材画像は `public/aircraft/ana/` にあります。ANA運航便はANA塗装、スターアライアンス加盟会社運航便はスターアライアンス塗装のみを使用し、無地画像は選択しません。画像素材の配布方針は
+親フォルダーの [`IMAGE_ASSET_ASSIGNMENTS.md`](../IMAGE_ASSET_ASSIGNMENTS.md) を参照してください。
+添付写真は現在の端末・ブラウザーのIndexedDBに保存され、他アプリとは同期しません。
