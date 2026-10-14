@@ -16,6 +16,8 @@ export default function WorldRouteMap({ flights, onSelectFlight }: Props) {
     origin: flight.origin,
     destination: flight.destination,
     flightNumber: flight.flightNumber,
+    points: flight.pp,
+    status: "搭乗済み",
   }));
 
   return <SharedWorldRouteMap

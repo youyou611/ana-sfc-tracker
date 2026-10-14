@@ -112,9 +112,24 @@ export async function restoreBackupRecords(logs: FlightLogEx[], images: FlightIm
 }
 
 export async function saveLog(log: FlightLogEx): Promise<void> {
-  if (!dbPromise) return;
+  if (!dbPromise) throw new Error('フライトデータベースを初期化できませんでした。ブラウザーを再読み込みしてください。');
   const db = await dbPromise;
   await db.put('logs', log);
+}
+
+/** Save a related set of flight records atomically (for example, both legs of a round trip). */
+export async function saveLogs(logs: FlightLogEx[]): Promise<void> {
+  if (logs.length === 0) return;
+  if (!dbPromise) throw new Error('フライトデータベースを初期化できませんでした。ブラウザーを再読み込みしてください。');
+  const db = await dbPromise;
+  const tx = db.transaction('logs', 'readwrite');
+  try {
+    await Promise.all(logs.map((log) => tx.store.put(log)));
+    await tx.done;
+  } catch (error) {
+    tx.abort();
+    throw error;
+  }
 }
 
 export async function deleteLog(id: string): Promise<void> {

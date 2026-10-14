@@ -50,6 +50,19 @@ export default function SettingsPage() {
     }
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        setBackupText(content);
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const importData = async () => {
     try {
       const data = JSON.parse(backupText);
@@ -103,75 +116,287 @@ export default function SettingsPage() {
   if (!isLoaded) return null;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-24 font-sans">
-      <div className="bg-[#002561] text-white pt-6 pb-6 px-6 relative shadow-md mb-6">
-        <h1 className="text-xl font-bold tracking-tight text-center">設定・ツール</h1>
+    <main className="min-h-screen bg-[#f4f7fb] text-slate-900 pb-28 font-sans">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-[#002561] via-[#003477] to-[#001b47] text-white pt-6 pb-7 px-4 sm:px-6 shadow-md">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-200">ANA SFC TRACKER</p>
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight mt-1">設定・データ管理</h1>
+            <p className="text-xs text-blue-100/75 mt-1">ステータス目標、データバックアップ、各種リンクの管理</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/10 text-blue-100 text-xs font-semibold backdrop-blur-sm border border-white/15">
+              Version 1.1.0
+            </span>
+          </div>
+        </div>
       </div>
 
-      <div className="px-4 space-y-6 max-w-2xl mx-auto">
-        
-        {/* 目標設定 */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <h2 className="text-sm font-bold text-[#003184] border-l-4 border-[#003184] pl-3 mb-4">目標ステータス設定</h2>
-          <select 
-            className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500 outline-none" 
-            value={targetType} 
-            onChange={(e) => updateSettings({ anaTargetType: e.target.value })}
-          >
-            {Object.keys(targetOptions).map(k => (
-              <option key={k} value={k}>{targetOptions[k].label} - {targetOptions[k].pp.toLocaleString()} PP</option>
-            ))}
-          </select>
-          <p className="text-[10px] text-slate-400 mt-2">目標を変更するとホーム画面の達成率が再計算されます。</p>
-        </div>
+      <div className="px-4 sm:px-6 py-6 max-w-4xl mx-auto space-y-6">
 
-        {/* ガイド */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <h2 className="text-sm font-bold text-[#003184] border-l-4 border-[#003184] pl-3 mb-4">SFC修行の基礎知識</h2>
-          <Link href="/guide" className="w-full py-3 bg-blue-50 text-blue-600 font-bold rounded-xl flex justify-center items-center gap-2 hover:bg-blue-100 transition-colors text-sm">
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477-4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>
-            SFC修行ガイド 2026年版 を読む
-          </Link>
-        </div>
-
-        {/* バックアップ */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <h2 className="text-sm font-bold text-[#003184] border-l-4 border-[#003184] pl-3 mb-4">データの保存・復元</h2>
-          <p className="text-[11px] text-slate-500 mb-4 leading-relaxed">
-            フライト記録などはすべてお使いのブラウザ（端末）に保存されています。機種変更時や、他のブラウザにデータを移行したい場合は、ファイルに書き出してください。
-          </p>
-
-          <div className="flex flex-col gap-3">
-            <button onClick={exportData} className="w-full py-3 bg-slate-800 text-white font-bold rounded-xl hover:bg-slate-700 transition-colors text-sm flex justify-center items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-              バックアップを保存 (ファイルダウンロード)
-            </button>
-            <button onClick={() => setShowImport(!showImport)} className="w-full py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors text-sm">
-              ファイルから復元する
-            </button>
+        {/* カンプ準拠: iOSグループ化 設定メニュー行 */}
+        <section aria-labelledby="settings-menu-heading" className="bg-white rounded-3xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
+          
+          {/* 行 1: 目標PP設定 */}
+          <div className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <span className="w-10 h-10 rounded-2xl bg-blue-50 text-[#003184] flex items-center justify-center text-lg shrink-0">
+                🎯
+              </span>
+              <div className="min-w-0">
+                <span className="text-sm font-black text-slate-900 block">目標PP設定</span>
+                <span className="text-xs text-slate-400 block truncate">
+                  現在: {targetOptions[targetType]?.label}
+                </span>
+              </div>
+            </div>
+            <div className="shrink-0 flex items-center gap-2">
+              <select
+                aria-label="目標ステータス"
+                value={targetType}
+                onChange={(e) => updateSettings({ anaTargetType: e.target.value })}
+                className="bg-slate-100 hover:bg-slate-200 border-none rounded-xl px-3 py-1.5 text-xs font-bold text-[#003184] outline-none cursor-pointer"
+              >
+                {Object.keys(targetOptions).map((k) => (
+                  <option key={k} value={k}>
+                    {targetOptions[k].pp.toLocaleString()} PP
+                  </option>
+                ))}
+              </select>
+              <span className="text-slate-300 font-bold text-sm">›</span>
+            </div>
           </div>
 
-          {message && <p role="status" className="mt-3 text-xs font-bold text-slate-600">{message}</p>}
+          {/* 行 2: データのバックアップ */}
+          <button
+            type="button"
+            onClick={exportData}
+            className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <span className="w-10 h-10 rounded-2xl bg-sky-50 text-sky-700 flex items-center justify-center text-lg shrink-0">
+                ☁️
+              </span>
+              <div className="min-w-0">
+                <span className="text-sm font-black text-slate-900 block">データのバックアップ</span>
+                <span className="text-xs text-slate-400 block truncate">
+                  搭乗履歴をJSONファイルとしてエクスポート
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-sky-600 bg-sky-50 px-3 py-1 rounded-xl shrink-0">
+              書き出し ›
+            </span>
+          </button>
+
+          {/* 行 3: データのインポート */}
+          <button
+            type="button"
+            onClick={() => setShowImport(!showImport)}
+            className="w-full p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <span className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center text-lg shrink-0">
+                📥
+              </span>
+              <div className="min-w-0">
+                <span className="text-sm font-black text-slate-900 block">データのインポート</span>
+                <span className="text-xs text-slate-400 block truncate">
+                  別端末やバックアップJSONから復元
+                </span>
+              </div>
+            </div>
+            <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-xl shrink-0">
+              {showImport ? "閉じる" : "復元 ›"}
+            </span>
+          </button>
+
+          {/* 行 4: 表示設定・ガイド案内 */}
+          <Link
+            href="/guide"
+            className="p-4 sm:p-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <span className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center text-lg shrink-0">
+                ⚙️
+              </span>
+              <div className="min-w-0">
+                <span className="text-sm font-black text-slate-900 block">表示設定・修行ガイド</span>
+                <span className="text-xs text-slate-400 block truncate">
+                  テーマ・2026年新運賃制度・空港ラウンジ案内
+                </span>
+              </div>
+            </div>
+            <span className="text-slate-300 font-bold text-sm">›</span>
+          </Link>
+        </section>
+
+          {message && (
+            <div role="status" className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs font-bold text-[#003184] flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              {message}
+            </div>
+          )}
 
           {showImport && (
-            <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-slate-200">
-              <label className="text-[10px] font-bold text-slate-400 block mb-2">ダウンロードしたJSONファイルの中身を貼り付けてください</label>
-              <textarea 
-                className="w-full h-32 p-3 text-xs font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" 
-                value={backupText} 
-                onChange={(e) => setBackupText(e.target.value)}
-                placeholder='{"flightLogs":"[...]"}' 
-              />
-              <div className="flex gap-2 mt-2">
-                <button onClick={() => setShowImport(false)} className="flex-1 py-2 bg-slate-200 text-slate-600 text-xs font-bold rounded-lg hover:bg-slate-300 transition-colors">キャンセル</button>
-                <button onClick={importData} className="flex-1 py-2 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition-colors">復元を実行</button>
+            <div className="mt-4 p-4 sm:p-5 bg-slate-50 rounded-xl border border-slate-200">
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  バックアップJSONファイルを選択：
+                </label>
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleFileUpload}
+                  className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-[#002561] file:text-white hover:file:bg-[#001b47] cursor-pointer"
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="text-[11px] font-bold text-slate-500 block mb-1.5">
+                  またはJSONテキストを直接貼り付け：
+                </label>
+                <textarea 
+                  className="w-full h-28 p-3 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none resize-none" 
+                  value={backupText} 
+                  onChange={(e) => setBackupText(e.target.value)}
+                  placeholder='{"flightLogs":"[...]"}' 
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <button 
+                  type="button"
+                  onClick={() => setShowImport(false)} 
+                  className="flex-1 py-2.5 bg-slate-200 text-slate-700 text-xs font-bold rounded-lg hover:bg-slate-300 transition-colors"
+                >
+                  キャンセル
+                </button>
+                <button 
+                  type="button"
+                  onClick={importData} 
+                  className="flex-1 py-2.5 bg-[#003184] text-white text-xs font-bold rounded-lg hover:bg-[#002561] transition-colors shadow-sm"
+                >
+                  復元を実行
+                </button>
               </div>
             </div>
           )}
-        </div>
 
+        {/* SFC修行ガイドへの案内 */}
+        <section aria-labelledby="guide-heading" className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 id="guide-heading" className="text-sm font-bold text-slate-900">SFC修行ガイド & 空港ガイド</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                PP計算の基本ルール、2026年新運賃制度、主要空港のANAラウンジ情報を確認できます
+              </p>
+            </div>
+            <Link 
+              href="/guide" 
+              className="shrink-0 py-2.5 px-4 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center gap-1.5 hover:bg-blue-100 transition-colors text-xs"
+            >
+              ガイドを見る
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </section>
+
+        {/* ANA公式リンク集 */}
+        <section aria-labelledby="links-heading" className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+          <div className="flex items-center gap-2.5 mb-4">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-[#003184]">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+            </span>
+            <div>
+              <h2 id="links-heading" className="text-sm font-bold text-slate-900">ANA 公式お役立ちリンク</h2>
+              <p className="text-xs text-slate-500">ANAオフィシャルサイトの最新シミュレーターおよび規約</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <a
+              href="https://www.ana.co.jp/ja/jp/amc/reference/tameru/flightmile/dom/flightcalc.html"
+              target="_blank"
+              rel="noreferrer"
+              className="p-3.5 rounded-xl border border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#003184] block">国内線フライトマイル計算</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">ANA公式フライトマイル・PPシミュレーター</span>
+              </div>
+              <span className="text-slate-400 group-hover:text-blue-600 text-sm ml-2">↗</span>
+            </a>
+            <a
+              href="https://www.ana.co.jp/ja/jp/amc/premium/overview/premium-point/"
+              target="_blank"
+              rel="noreferrer"
+              className="p-3.5 rounded-xl border border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#003184] block">プレミアムポイントとは</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">積算ルール・路線倍率・搭乗ポイント</span>
+              </div>
+              <span className="text-slate-400 group-hover:text-blue-600 text-sm ml-2">↗</span>
+            </a>
+            <a
+              href="https://www.ana.co.jp/ja/jp/amc/premium/service/"
+              target="_blank"
+              rel="noreferrer"
+              className="p-3.5 rounded-xl border border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#003184] block">プレミアムメンバーサービス</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">ブロンズ・プラチナ・ダイヤモンドの特典一覧</span>
+              </div>
+              <span className="text-slate-400 group-hover:text-blue-600 text-sm ml-2">↗</span>
+            </a>
+            <a
+              href="https://www.ana.co.jp/ja/jp/amc/reference/tameru/flightmile/dom/chart.html"
+              target="_blank"
+              rel="noreferrer"
+              className="p-3.5 rounded-xl border border-slate-200/80 hover:border-blue-300 hover:bg-blue-50/40 transition-all flex items-center justify-between group"
+            >
+              <div>
+                <span className="text-xs font-bold text-slate-800 group-hover:text-[#003184] block">国内線区間基本マイレージ表</span>
+                <span className="text-[10px] text-slate-400 mt-0.5 block">全就航路線の基本マイル（TPM）一覧</span>
+              </div>
+              <span className="text-slate-400 group-hover:text-blue-600 text-sm ml-2">↗</span>
+            </a>
+          </div>
+        </section>
+
+        {/* システム情報 */}
+        <section aria-labelledby="system-heading" className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+          <h2 id="system-heading" className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3">システム情報</h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="text-[10px] text-slate-400 block font-medium">バージョン</span>
+              <span className="text-xs font-bold text-slate-700 mt-0.5 block">1.1.0</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="text-[10px] text-slate-400 block font-medium">アライアンス</span>
+              <span className="text-xs font-bold text-slate-700 mt-0.5 block">スターアライアンス</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="text-[10px] text-slate-400 block font-medium">ストレージ</span>
+              <span className="text-xs font-bold text-slate-700 mt-0.5 block">IndexedDB</span>
+            </div>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <span className="text-[10px] text-slate-400 block font-medium">新運賃制度</span>
+              <span className="text-xs font-bold text-slate-700 mt-0.5 block">2026年対応済</span>
+            </div>
+          </div>
+        </section>
       </div>
-    </div>
+    </main>
   );
 }
 

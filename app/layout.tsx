@@ -36,7 +36,7 @@ export default function RootLayout({
         {/* AdSenseのコードはエラーを防ぐため、ここではなく下の <Script> で読み込みます */}
       </head>
 
-      <body className="bg-slate-50">
+      <body className="bg-slate-50 antialiased">
         
         {/* Google AdSense の審査用コード */}
         <Script

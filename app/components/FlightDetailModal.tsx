@@ -91,6 +91,9 @@ function AircraftTypeCombobox({ value, onChange, onSelect }: {
 }
 
 export default function FlightDetailModal({ log, generatedImage, onClose, onUpdate }: Props) {
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const dialogRef = useRef<HTMLElement>(null);
+  const latestOnCloseRef = useRef(onClose);
   const [memo, setMemo] = useState(log.memo || "");
   const [imageSrc, setImageSrc] = useState(generatedImage);
   const imageSrcRef = useRef(generatedImage);
@@ -116,6 +119,53 @@ export default function FlightDetailModal({ log, generatedImage, onClose, onUpda
   const [memoImages, setMemoImages] = useState<Array<{ id: string; src: string }>>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    latestOnCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        latestOnCloseRef.current();
+        return;
+      }
+
+      if (event.key !== "Tab" || !dialogRef.current) return;
+      const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      );
+      const focusable = Array.from(focusableElements).filter(element => element.getClientRects().length > 0);
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialogRef.current.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && (document.activeElement === first || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (document.activeElement === last || !dialogRef.current.contains(document.activeElement))) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, []);
 
   const allAircraftImages = getAircraftImageOptions(aircraftType);
   const starAllianceBackgroundOptions = getStarAllianceBackgroundOptions(aircraftType);
@@ -335,25 +385,28 @@ export default function FlightDetailModal({ log, generatedImage, onClose, onUpda
       onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}
     >
       <motion.section
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="フライト詳細"
+        tabIndex={-1}
         initial={{ opacity: 0, scale: 0.94, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.94, y: 16 }}
         transition={{ type: "spring", stiffness: 350, damping: 28 }}
-        className="w-full max-w-2xl max-h-[92vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border border-slate-100"
+        className="w-full max-w-3xl max-h-[calc(100dvh-1.5rem)] md:max-h-[min(92dvh,900px)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-3xl bg-white shadow-2xl border border-slate-100"
       >
-        <div className="relative h-52 md:h-72 bg-slate-900">
+        <div className="relative h-44 sm:h-52 md:h-60 bg-slate-900">
           <img src={imageSrc} alt={`${log.aircraftType || "航空機"} の画像`} className="h-full w-full object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-slate-950/85 via-slate-950/5 to-slate-950/20" />
           <motion.button
+            ref={closeButtonRef}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             type="button"
             onClick={onClose}
             aria-label="閉じる"
-            className="absolute top-3 right-3 rounded-full bg-black/60 backdrop-blur-md px-3.5 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-black/80 transition-colors"
+            className="absolute top-3 right-3 min-h-11 min-w-11 rounded-full bg-black/60 backdrop-blur-md px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-black/80 transition-colors"
           >
             閉じる
           </motion.button>
@@ -364,11 +417,11 @@ export default function FlightDetailModal({ log, generatedImage, onClose, onUpda
             <div className="mt-2 flex flex-wrap gap-2"><span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${classPresentation.badge}`}>{classPresentation.label}</span>{bookingClass && <span className="rounded-full bg-white/20 px-2.5 py-1 text-[10px] font-black">予約クラス {bookingClass}</span>}</div>
               </div>
         </div>
-        <div className="space-y-5 p-5 md:p-7">
-          <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-2xl bg-blue-50 p-3"><p className="text-[10px] font-bold text-slate-500">獲得PP</p><p className="text-xl font-black text-[#003184]">{log.pp.toLocaleString()}</p></div>
-            <div className="rounded-2xl bg-slate-50 p-3"><p className="text-[10px] font-bold text-slate-500">運賃</p><p className="text-lg font-black text-slate-800">¥{log.price.toLocaleString()}</p></div>
-            <div className="rounded-2xl bg-slate-50 p-3"><p className="text-[10px] font-bold text-slate-500">PP単価</p><p className="text-lg font-black text-slate-800">¥{log.pp > 0 ? (log.price / log.pp).toFixed(1) : "0.0"}</p></div>
+        <div className="space-y-4 p-3 sm:p-5 md:p-7">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="min-w-0 rounded-2xl border border-blue-100 bg-blue-50 p-2.5 sm:p-3"><p className="text-[10px] font-bold text-slate-500">獲得PP</p><p className="mt-0.5 text-base sm:text-xl font-black tracking-tight text-[#003184] tabular-nums">{log.pp.toLocaleString()}</p></div>
+            <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-2.5 sm:p-3"><p className="text-[10px] font-bold text-slate-500">運賃</p><p className="mt-0.5 text-sm sm:text-lg font-black tracking-tight text-slate-800 tabular-nums">¥{log.price.toLocaleString()}</p></div>
+            <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-2.5 sm:p-3"><p className="text-[10px] font-bold text-slate-500">PP単価</p><p className="mt-0.5 text-sm sm:text-lg font-black tracking-tight text-slate-800 tabular-nums">¥{log.pp > 0 ? (log.price / log.pp).toFixed(1) : "0.0"}</p></div>
           </div>
           {log.operatingCarrier && log.operatingCarrier !== "NH" && <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs leading-relaxed text-slate-700">
             <p className="font-black">提携航空会社のPP記録</p>
@@ -436,14 +489,14 @@ export default function FlightDetailModal({ log, generatedImage, onClose, onUpda
               </button>
             </div>
             <input ref={aircraftImageInputRef} type="file" accept="image/*" onChange={chooseAircraftBackground} className="hidden" aria-label="機材背景画像をアップロード" />
-            {aircraftCustomImageId && <button type="button" disabled={isSaving} onClick={resetAircraftBackground} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold text-slate-600 disabled:opacity-50">既定の塗装画像に戻す</button>}
+            {aircraftCustomImageId && <motion.button type="button" whileTap={{ scale: 0.97 }} disabled={isSaving} onClick={resetAircraftBackground} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold text-slate-600 disabled:opacity-50">既定の塗装画像に戻す</motion.button>}
             {customImageMessage && <p role="status" className="text-[10px] font-bold text-slate-600">{customImageMessage}</p>}
-            <button type="button" disabled={isSaving} onClick={saveMemo} className="rounded-xl bg-[#003184] px-4 py-2 text-xs font-black text-white disabled:opacity-50">機材情報と画像を保存</button>
+            <motion.button type="button" whileTap={{ scale: 0.97 }} disabled={isSaving} onClick={saveMemo} className="rounded-xl bg-[#003184] px-4 py-2 text-xs font-black text-white disabled:opacity-50">機材情報と画像を保存</motion.button>
           </div>
           <div>
             <label htmlFor="flight-memo" className="mb-2 block text-sm font-black text-slate-800">このフライトのメモ</label>
             <textarea id="flight-memo" value={memo} onChange={(event) => setMemo(event.target.value)} rows={4} placeholder="空港での出来事、座席の感想など" className="w-full resize-y rounded-2xl border border-slate-200 bg-slate-50 p-3 text-sm outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100" />
-            <button type="button" disabled={isSaving} onClick={saveMemo} className="mt-2 rounded-xl bg-[#003184] px-4 py-2 text-xs font-black text-white disabled:opacity-50">メモを保存</button>
+            <motion.button type="button" whileTap={{ scale: 0.97 }} disabled={isSaving} onClick={saveMemo} className="mt-2 rounded-xl bg-[#003184] px-4 py-2 text-xs font-black text-white disabled:opacity-50">メモを保存</motion.button>
           </div>
           <div className="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-4">
             <label className="cursor-pointer rounded-xl bg-blue-50 px-4 py-2.5 text-xs font-black text-[#003184] hover:bg-blue-100">
@@ -454,7 +507,7 @@ export default function FlightDetailModal({ log, generatedImage, onClose, onUpda
               カバー写真を変更
               <input type="file" accept="image/*" capture="environment" onChange={chooseCoverPhoto} className="hidden" />
             </label>
-            {log.imageId && <button type="button" disabled={isSaving} onClick={resetPhoto} className="rounded-xl px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100">機材画像に戻す</button>}
+            {log.imageId && <motion.button type="button" whileTap={{ scale: 0.97 }} disabled={isSaving} onClick={resetPhoto} className="rounded-xl px-3 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100">機材画像に戻す</motion.button>}
             <span className="text-[11px] text-slate-400">写真は縮小してこの端末に保存します</span>
           </div>
           {memoImages.length > 0 && <div>
@@ -462,7 +515,7 @@ export default function FlightDetailModal({ log, generatedImage, onClose, onUpda
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {memoImages.map((photo, index) => <figure key={photo.id} className="relative overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
                 <img src={photo.src} alt={`フライトメモの写真 ${index + 1}`} className="h-36 w-full object-cover" />
-                <button type="button" disabled={isSaving} onClick={() => removeMemoPhoto(photo.id)} className="absolute right-2 top-2 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white disabled:opacity-50">削除</button>
+                <motion.button type="button" whileTap={{ scale: 0.94 }} disabled={isSaving} onClick={() => removeMemoPhoto(photo.id)} className="absolute right-2 top-2 rounded-lg bg-black/65 px-2 py-1 text-[10px] font-bold text-white disabled:opacity-50">削除</motion.button>
               </figure>)}
             </div>
           </div>}

@@ -2,15 +2,14 @@
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import Image from "next/image";
 import { getDomBaseMiles } from "./domesticMileage";
 import { INTL_AIRPORTS, INTL_REGIONS, getIntlBaseMiles, getIntlRegion, getIntlRouteMultiplier } from "./internationalMileage";
 import { useFlightData } from "../hooks/useFlightData";
 import { saveImage } from "../lib/db";
 import { Airline } from "../types";
 import AircraftTypeCombobox from "../components/AircraftTypeCombobox";
-import { AIRCRAFT_OPTIONS, getAircraftImageOptions, getFlyingHonuImagePath, getPreferredAircraftImagePath, getPreferredStarAllianceImagePath, getStarAllianceBackgroundOptions } from "../lib/aircraftImages";
-import { getAnaDomesticClass, getTravelClassPresentation, type TravelClass } from "../lib/travelClass";
+import { getAircraftImageOptions, getFlyingHonuImagePath, getPreferredAircraftImagePath, getPreferredStarAllianceImagePath, getStarAllianceBackgroundOptions } from "../lib/aircraftImages";
+import { getAnaDomesticClass, type TravelClass } from "../lib/travelClass";
 
 // --- 空港データの定義 ---
 const domAirports: { code: string; name: string; region?: string }[] = [
@@ -52,14 +51,27 @@ const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, i
   const filtered = targetAirports.filter(a => a.name.includes(search) || a.code.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div className="relative w-full">
-      <label className="text-[10px] font-bold text-slate-400 mb-1.5 block uppercase tracking-wider">{label}</label>
+    <div className="relative w-full min-w-0">
+      <label className="mb-1.5 block text-[11px] font-semibold leading-relaxed text-slate-600">{label}</label>
       <div className="relative">
         <input
           type="text"
-          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 pl-3 pr-8 text-sm font-bold text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-slate-300 placeholder:font-normal"
+          className="min-h-11 w-full rounded-xl border border-slate-200 bg-white py-2.5 pl-3 pr-8 text-sm font-semibold text-[#12213a] shadow-[0_1px_2px_rgba(15,35,65,0.025)] outline-none transition-[border-color,box-shadow,background-color] duration-150 placeholder:font-normal placeholder:text-slate-400 hover:border-slate-300 focus:border-[#2878f0] focus:ring-4 focus:ring-blue-100/70"
           placeholder="空港名 or 3レター"
           value={isOpen ? search : displayValue}
+          role="combobox"
+          aria-controls={`airport-options-${isIntl ? "intl" : "domestic"}-${label.replace(/\s+/g, "-")}`}
+          aria-expanded={isOpen}
+          aria-autocomplete="list"
+          onKeyDown={(event) => {
+            if (event.key === "Escape") setIsOpen(false);
+            if (event.key === "Enter" && isOpen && filtered.length > 0) {
+              event.preventDefault();
+              onChange(filtered[0].code);
+              setSearch("");
+              setIsOpen(false);
+            }
+          }}
           onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
           onFocus={() => { setIsOpen(true); setSearch(""); }}
           onBlur={() => setTimeout(() => setIsOpen(false), 200)}
@@ -70,9 +82,9 @@ const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, i
       </div>
 
       {isOpen && (
-        <ul className="absolute z-50 w-full bg-white border border-slate-200 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto divide-y divide-slate-50">
+        <ul id={`airport-options-${isIntl ? "intl" : "domestic"}-${label.replace(/\s+/g, "-")}`} role="listbox" className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl divide-y divide-slate-50">
           {allowEmpty && (
-            <li className="p-3 text-sm cursor-pointer hover:bg-slate-50 text-slate-500 font-medium" onClick={() => onChange("")}>
+            <li role="option" aria-selected={!value} className="min-h-11 cursor-pointer p-3 text-sm font-medium text-slate-500 hover:bg-slate-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(""); setIsOpen(false); setSearch(""); }}>
               直行便 (経由なし)
             </li>
           )}
@@ -83,7 +95,7 @@ const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, i
             return (
               <React.Fragment key={a.code}>
                 {showHeader && <li className="px-3 py-1.5 text-[10px] font-black text-slate-500 bg-slate-100 sticky top-0">{headerLabel}</li>}
-                <li className="p-3 text-sm cursor-pointer hover:bg-blue-50 flex justify-between items-center group" onClick={() => onChange(a.code)}>
+                <li role="option" aria-selected={value === a.code} className="flex min-h-11 cursor-pointer items-center justify-between p-3 text-sm group hover:bg-blue-50" onMouseDown={(event) => event.preventDefault()} onClick={() => { onChange(a.code); setIsOpen(false); setSearch(""); }}>
                   <span className="font-bold text-slate-700 group-hover:text-[#003184]">{a.name}</span>
                   <span className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-1 rounded">{a.code}</span>
                 </li>
@@ -176,10 +188,12 @@ export default function FlightCalculator() {
   const today = new Date().toISOString().split('T')[0];
   
   // --- 状態管理 ---
-  const { addLog } = useFlightData();
+  const { addLog, addLogs } = useFlightData();
   const airline: Airline = "ANA";
   const [flightMode, setFlightMode] = useState<"domestic" | "international" | "star-alliance">("domestic");
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isSavingFlight, setIsSavingFlight] = useState(false);
+  const [saveFlightError, setSaveFlightError] = useState("");
   
   // オタク向けフィールド
   const [flightNumber, setFlightNumber] = useState("");
@@ -222,11 +236,7 @@ export default function FlightCalculator() {
   const resultCardRef = useRef<HTMLDivElement>(null);
   const isNewFare = date >= "2026-05-19";
 
-  const scrollToResult = () => {
-    if (resultCardRef.current) {
-      resultCardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  };
+
 
   // ★ localStorage 読み込み
   useEffect(() => {
@@ -439,15 +449,9 @@ export default function FlightCalculator() {
   const intlClassDetails = ANA_INTL_BOOKING_CLASSES[intlBookingClass] || ANA_INTL_BOOKING_CLASSES.Y;
   const partnerClassDetails = PARTNER_ACCRUAL_CLASSES.find((item) => item.code === intlBookingClass);
   const currentTravelClass: TravelClass = flightMode === "domestic" ? getAnaDomesticClass(isFirstClassOnly, date) : isPartnerIntl ? (partnerClassDetails?.travelClass || "economy") : intlClassDetails.travelClass;
-  const currentClassPresentation = getTravelClassPresentation(currentTravelClass);
   const aircraftImageOptions = getAircraftImageOptions(aircraftType);
   const starAllianceBackgroundOptions = getStarAllianceBackgroundOptions(aircraftType);
   const selectedHonuImage = getFlyingHonuImagePath(registration);
-  const visibleAircraftImageOptions = !aircraftType.trim() ? [] : isPartnerIntl
-    ? starAllianceBackgroundOptions
-    : aircraftType.toUpperCase().includes("380")
-      ? aircraftImageOptions.filter((option) => option.path === (selectedHonuImage || getPreferredAircraftImagePath(aircraftType, registration)))
-      : aircraftImageOptions.filter((option) => option.alliance === "ANA");
   useEffect(() => {
     if (!aircraftType.trim()) return;
     const requiredPath = isPartnerIntl
@@ -459,9 +463,6 @@ export default function FlightCalculator() {
       || (!isPartnerIntl && aircraftType.toUpperCase().includes("380") && Boolean(selectedHonuImage) && aircraftImagePath === selectedHonuImage);
     if (!allowed) setAircraftImagePath(requiredPath);
   }, [flightMode, isPartnerIntl, aircraftType, registration, aircraftImagePath, aircraftImageOptions, starAllianceBackgroundOptions, selectedHonuImage]);
-  const handleSwapDomRoute = () => { const temp = origin; setOrigin(destination); setDestination(temp); };
-  const handleSwapIntlRoute = () => { const temp = intlOrigin; setIntlOrigin(intlDestination); setIntlDestination(temp); };
-  const handleSwapPartnerRoute = () => { const temp = partnerOrigin; setPartnerOrigin(partnerDestination); setPartnerDestination(temp); };
 
   const handleOutboundDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDate = e.target.value;
@@ -531,6 +532,8 @@ export default function FlightCalculator() {
   const ppUnitPrice = totalPP > 0 ? (currentPrice / totalPP).toFixed(1) : "0.0";
 
   const saveFlightLog = async () => {
+    if (isSavingFlight) return;
+    setSaveFlightError("");
     if (!date) return alert("搭乗日を入力してください。");
     if (tripType === "roundtrip" && !returnDate) return alert("復路の搭乗日を入力してください。");
 
@@ -584,8 +587,7 @@ export default function FlightCalculator() {
       travelClass: currentTravelClass,
     };
 
-    await addLog(newLog);
-
+    const recordsToSave = [newLog];
     if (tripType === "roundtrip") {
       const returnLog = {
         id: crypto.randomUUID(),
@@ -612,427 +614,458 @@ export default function FlightCalculator() {
         distanceSource: isPartnerIntl && partnerManualDistance > 0 ? "manual-official" as const : undefined,
         travelClass: flightMode === "domestic" ? getAnaDomesticClass(isFirstClassOnly, returnDate) : currentTravelClass,
       };
-      await addLog(returnLog);
+      recordsToSave.push(returnLog);
     }
 
-    router.push("/logs");
+    setIsSavingFlight(true);
+    try {
+      if (recordsToSave.length === 1) {
+        await addLog(recordsToSave[0]);
+      } else {
+        await addLogs(recordsToSave);
+      }
+      router.push("/logs");
+    } catch (error) {
+      console.error("フライト登録に失敗しました", error);
+      const detail = error instanceof Error ? error.message : "保存先のエラーを確認できませんでした。";
+      setSaveFlightError(`フライトを保存できませんでした。入力内容はそのままです。${detail}`);
+    } finally {
+      setIsSavingFlight(false);
+    }
   };
 
+
+      const handleSwapAirports = () => {
+    if (flightMode === "domestic") {
+      const prev = origin;
+      setOrigin(destination);
+      setDestination(prev);
+    } else if (flightMode === "international") {
+      const prev = intlOrigin;
+      setIntlOrigin(intlDestination);
+      setIntlDestination(prev);
+    } else {
+      const prev = partnerOrigin;
+      setPartnerOrigin(partnerDestination);
+      setPartnerDestination(prev);
+    }
+  };
 
   if (!isLoaded) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-slate-400 font-bold text-sm">読み込み中...</p></div>;
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 pb-28 md:pb-24 font-sans">
-      <div className="bg-[#002561] text-white py-3.5 md:py-6 px-4 md:px-6 relative shadow-md mb-3 md:mb-6">
-        <h1 className="text-base md:text-xl font-bold tracking-tight text-center">PPフライトシミュレーター</h1>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-3 md:px-4 space-y-4 md:space-y-6">
-        
-        {/* 国内・国際 切り替えタブ */}
-        <div className="flex justify-center mb-1">
-        <div className="bg-slate-200/70 p-1 rounded-xl inline-flex relative shadow-inner w-full md:w-auto">
-            <button onClick={() => setFlightMode("domestic")} className={`flex-1 md:flex-none relative z-10 px-5 md:px-8 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-lg transition-all duration-300 ${flightMode === 'domestic' ? ('text-[#003184] bg-white') + ' shadow-md transform scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}>
-              {airline} 国内線
-            </button>
-            <button onClick={() => setFlightMode("international")} className={`flex-1 md:flex-none relative z-10 px-5 md:px-8 py-2 md:py-2.5 text-xs md:text-sm font-bold rounded-lg transition-all duration-300 ${flightMode === 'international' ? ('text-[#003184] bg-white') + ' shadow-md transform scale-100' : 'text-slate-500 hover:text-slate-700 scale-95'}`}>
-              {airline} 国際線
-            </button>
-            <button onClick={() => setFlightMode("star-alliance")} className={`flex-1 md:flex-none relative z-10 px-4 md:px-6 py-2 md:py-2.5 text-[11px] md:text-sm font-bold rounded-lg transition-all duration-300 ${flightMode === 'star-alliance' ? 'text-white bg-[#002561] shadow-md' : 'text-slate-500 hover:text-slate-700'}`}>
-              スターアライアンス運航便
-            </button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6">
-          <div className="md:col-span-7 bg-white rounded-2xl p-4 md:p-8 border border-slate-200 shadow-sm space-y-4 md:space-y-6">
-            
-            {/* 共通: 片道/往復、日付 */}
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex bg-slate-100 p-1 rounded-lg shadow-inner">
-                <button onClick={() => setTripType("oneway")} className={`px-4 md:px-6 py-1.5 md:py-2 text-xs font-bold rounded-md transition-all ${tripType === 'oneway' ? 'bg-white text-[#003184] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                  片道
-                </button>
-                <button onClick={() => setTripType("roundtrip")} className={`px-4 md:px-6 py-1.5 md:py-2 text-xs font-bold rounded-md transition-all ${tripType === 'roundtrip' ? 'bg-white text-[#003184] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                  往復
-                </button>
-              </div>
-
-              {flightMode === "domestic" && (
-                <span className={`px-2.5 py-1 rounded text-[10px] font-bold text-white shadow-sm ${isNewFare ? 'bg-emerald-600' : 'bg-slate-500'}`}>
-                  {isNewFare ? '2026年新運賃' : '現行運賃'}
-                </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase tracking-wider text-[#003184]">
-                  {tripType === "roundtrip" ? "往路 (行き) 搭乗日" : "搭乗予定日"}
-                </label>
-                <input 
-                  type="date" 
-                  className="w-full bg-blue-50/40 border border-blue-200 rounded-lg p-2.5 text-xs md:text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none text-[#003184] transition-all cursor-pointer" 
-                  value={date} 
-                  onChange={handleOutboundDateChange} 
-                />
-              </div>
-              
-              {tripType === "roundtrip" && (
-                <div>
-                  <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase tracking-wider text-[#003184]">復路 (帰り) 搭乗日</label>
-                  <input 
-                    type="date" 
-                    ref={returnDateRef}
-                    className="w-full bg-blue-50/40 border border-blue-200 rounded-lg p-2.5 text-xs md:text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none text-[#003184] transition-all cursor-pointer" 
-                    value={returnDate} 
-                    onChange={(e) => setReturnDate(e.target.value)} 
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center pt-1 border-t border-slate-100">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                {tripType === "roundtrip" ? "往路の区間設定" : "フライト区間"}
-              </div>
-              <button onClick={flightMode === "domestic" ? handleSwapDomRoute : isPartnerIntl ? handleSwapPartnerRoute : handleSwapIntlRoute} className="flex items-center gap-1 px-3 py-1 bg-blue-50 hover:bg-blue-100 text-[#003184] text-[10px] font-bold rounded-full transition-colors border border-blue-200/50 shadow-sm">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
-                反転
-              </button>
-            </div>
-
-            {flightMode === "domestic" ? (
-              // --- 国内線 入力エリア ---
-              <>
-                <div className="flex items-center justify-between">
-                  <label className="inline-flex items-center gap-2 text-xs md:text-sm font-bold text-slate-700 cursor-pointer">
-                    <input type="checkbox" className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500" checked={isFirstClassOnly} onChange={(e) => setIsFirstClassOnly(e.target.checked)} />
-                    {isFirstClassOnly ? (isNewFare ? "ファーストクラス" : "プレミアムクラス") : "普通席/エコノミー"}
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 md:gap-3">
-                  <SearchableAirportSelect label="出発空港" value={origin} onChange={setOrigin} isIntl={false} />
-                  <SearchableAirportSelect label="到着空港" value={destination} onChange={setDestination} isIntl={false} />
-                  <div className="col-span-2 md:col-span-1">
-                    <SearchableAirportSelect label="経由地 (任意)" value={via} onChange={setVia} allowEmpty={true} isIntl={false} />
-                  </div>
-                </div>
-
-                {/* コンパクトなマイル表示バー */}
-                <div className="bg-slate-50/80 rounded-xl p-2.5 md:p-3 border border-slate-200/80 flex items-center justify-between text-xs">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-400 font-bold uppercase">区間基本マイル</span>
-                    <span className="text-[11px] text-blue-600 font-semibold">自動算出済</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <input type="number" className="w-20 bg-white border border-slate-300 rounded px-2 py-1 text-right text-xs md:text-sm font-bold text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none" value={manualDistance} onChange={(e) => setManualDistance(Number(e.target.value))} />
-                    <span className="text-[10px] font-bold text-slate-400">マイル</span>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 border-t border-slate-100 pt-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase tracking-wider">運賃種別</label>
-                    <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs md:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={fareKey} onChange={(e) => setFareKey(e.target.value)}>
-                      {availableFareKeys.map(k => <option key={k} value={k}>{domFareTypes[k].label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase tracking-wider">搭乗ボーナス PP (1区間)</label>
-                    <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs md:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={boardingBonus} onChange={(e) => setBoardingBonus(Number(e.target.value))}>
-                      <option value={0}>なし (0 PP)</option>
-                      <option value={100}>100 PP</option>
-                      <option value={200}>200 PP (乗継等)</option>
-                      <option value={400}>あり (400 PP)</option>
-                    </select>
-                  </div>
-                </div>
-              </>
-            ) : flightMode === "international" ? (
-              // --- 国際線 入力エリア ---
-              <>
-                <div className="grid grid-cols-2 gap-2 md:gap-4">
-                  <SearchableAirportSelect label="日本側 空港（ANA対象路線）" value={intlOrigin} onChange={(code) => { setIntlOrigin(code); setIntlManualDistance(getIntlDistance(code, intlDestination)); }} isIntl={true} />
-                  <SearchableAirportSelect label="海外側 空港（ANA対象路線）" value={intlDestination} onChange={(code) => { setIntlDestination(code); setIntlManualDistance(getIntlDistance(intlOrigin, code)); }} isIntl={true} />
-                </div>
-                {getIntlDistance(intlOrigin, intlDestination) <= 0 && <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs font-bold text-amber-800">この区間はANA公式マイレージチャートの対象外です。スターアライアンス加盟会社運航便は、専用タブで登録してください。</p>}
-                <p className="text-[10px] font-bold">
-                  {getIntlDistance(intlOrigin, intlDestination) > 0 && intlRegion ? (
-                    <span className={getIntlRouteMultiplier(intlOrigin, intlDestination) > 1 ? "text-emerald-600" : "text-slate-500"}>
-                      {`${INTL_REGIONS[intlRegion].label}路線: 路線倍率 ${getIntlRouteMultiplier(intlOrigin, intlDestination).toFixed(1)}倍`}
-                    </span>
-                  ) : (
-                    <span className="text-amber-600">ANA公式マイレージチャート対象外の路線です。スターアライアンス運航便タブを利用してください。</span>
-                  )}
-                </p>
-
-                <div className="bg-slate-50/80 rounded-xl p-2.5 md:p-3 border border-slate-200/80 space-y-2 text-xs">
-                  <label className="flex items-center justify-between gap-3 text-[10px] font-bold text-slate-600">
-                    <span>区間基本マイル（片道 TPM）</span>
-                  </label>
-                  <div className="flex items-center gap-1.5">
-                    <input type="number" className="w-20 bg-white border border-slate-300 rounded px-2 py-1 text-right text-xs md:text-sm font-bold text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none" value={intlManualDistance} onChange={(e) => setIntlManualDistance(Number(e.target.value))} />
-                    <span className="text-[10px] font-bold text-slate-400">マイル</span>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100 pt-3">
-                  <label className="text-[10px] font-bold text-slate-400 mb-1 block uppercase tracking-wider">予約クラス</label>
-                  <select className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2.5 text-xs md:text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none" value={intlBookingClass} onChange={(e) => setIntlBookingClass(e.target.value)}>
-                    {Object.entries(ANA_INTL_BOOKING_CLASSES).map(([code, fare]) => <option key={code} value={code}>{fare.label} — {Math.round(fare.rate * 100)}%・搭乗ポイント {fare.boardingPoints}</option>)}
-                  </select>
-                  <p className="mt-1 text-[10px] text-slate-500">ANA運航便の予約クラスを選択します。</p>
-                </div>
-              </>
-            ) : (
-              // --- スターアライアンス運航便 入力エリア ---
-              <>
-                <div className="grid grid-cols-2 gap-2 md:gap-4">
-                  <SearchableAirportSelect label="出発空港" value={partnerOrigin} onChange={(code) => { setPartnerOrigin(code); setPartnerManualDistance(getIntlDistance(code, partnerDestination)); }} isIntl={true} />
-                  <SearchableAirportSelect label="到着空港" value={partnerDestination} onChange={(code) => { setPartnerDestination(code); setPartnerManualDistance(getIntlDistance(partnerOrigin, code)); }} isIntl={true} />
-                </div>
-                <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 space-y-3">
-                  <div>
-                    <label className="mb-1 block text-[10px] font-black uppercase tracking-wider text-[#003184]">運航会社</label>
-                    <select aria-label="運航会社" className="w-full rounded-lg border border-blue-200 bg-white p-2.5 text-sm font-bold text-[#003184] outline-none focus:ring-2 focus:ring-blue-400" value={intlOperatingCarrier} onChange={(event) => {
-                      const code = event.target.value;
-                      setIntlOperatingCarrier(code);
-                      setAircraftImagePath(getPreferredStarAllianceImagePath(aircraftType));
-                    }}>
-                      {STAR_ALLIANCE_CARRIERS.filter((carrier) => carrier.code !== "NH").map((carrier) => <option key={carrier.code} value={carrier.code}>{carrier.name} ({carrier.code})</option>)}
-                    </select>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="mb-1 block text-[10px] font-black text-slate-600">ANAマイレージクラブ積算率（航空会社別条件を確認）</label>
-                      <select className="w-full rounded-lg border border-slate-200 bg-white p-2.5 text-sm font-bold text-slate-800" value={partnerAccrualRate} onChange={(event) => { setPartnerAccrualRate(Number(event.target.value)); setPartnerAccrualConfirmed(false); }}>
-                        {[0, 30, 50, 70, 75, 100, 110, 125, 150, 200].map((rate) => <option key={rate} value={rate}>{rate === 0 ? "0%（積算対象外）" : `${rate}%`}</option>)}
-                      </select>
-                    </div>
-                    <div className="flex items-end">
-                      <label className="flex items-start gap-2 rounded-lg bg-white p-2.5 text-xs font-bold leading-relaxed text-slate-700 border border-slate-200">
-                        <input type="checkbox" checked={partnerAccrualConfirmed} onChange={(event) => setPartnerAccrualConfirmed(event.target.checked)} className="mt-0.5 h-4 w-4 accent-[#003184]" />
-                        この運航会社・予約クラスのANA積算率を公式一覧で確認した
-                      </label>
-                    </div>
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-slate-600">提携会社便の積算率は航空会社・予約クラスで異なります。公式条件を確認してチェックを入れるまでPPは0として扱います。確認済みの場合、路線倍率は1倍、積算率100%以上なら搭乗ポイント400、未満なら0で試算します。</p>
-                </div>
-                <div className="bg-slate-50/80 rounded-xl p-2.5 md:p-3 border border-slate-200/80 space-y-2 text-xs">
-                  <label className="flex items-center justify-between gap-3 text-[10px] font-bold text-slate-600">
-                    <span>ANA公式マイレージチャートの区間基本マイル（片道）</span>
-                  </label>
-                  <div className="flex items-center gap-1.5">
-                    <input type="number" className="w-28 bg-white border border-slate-300 rounded px-2 py-1 text-right text-sm font-bold text-[#003184]" value={partnerManualDistance} onChange={(event) => setPartnerManualDistance(Number(event.target.value))} />
-                    <span className="text-[10px] font-bold text-slate-400">マイル</span>
-                  </div>
-                  {partnerManualDistance <= 0 && <p className="text-[10px] text-amber-700">公式チャートに区間がない場合は、公式の区間基本マイルを確認して手入力してください。</p>}
-                </div>
-                <div>
-                  <label className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">予約クラス</label>
-                  <select className="w-full rounded-lg border border-slate-200 bg-slate-50 p-2.5 text-xs font-medium" value={intlBookingClass} onChange={(event) => { setIntlBookingClass(event.target.value); setPartnerAccrualConfirmed(false); }}>
-                    {PARTNER_ACCRUAL_CLASSES.map((item) => <option key={item.code} value={item.code}>{item.label} — 積算率は会社別一覧で要確認</option>)}
-                  </select>
-                </div>
-              </>
-            )}
-            
-            {/* オタク向け詳細データ */}
-            <div className="pt-3 pb-2 border-t border-slate-100">
-              <label className="text-[10px] font-bold text-slate-500 mb-2 block uppercase tracking-wider">
-                フライト詳細（任意）
-              </label>
-              <div className={`mb-3 flex items-center justify-between gap-3 rounded-xl border ${currentClassPresentation.border} ${currentClassPresentation.ticket} p-3`}>
-                <div><p className="text-[9px] font-black uppercase tracking-wider text-slate-500">搭乗券プレビュー</p><p className="text-sm font-black text-slate-800">{currentClassPresentation.label}</p></div>
-                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-black ${currentClassPresentation.badge}`}>{flightMode === "domestic" ? (isNewFare ? "2026年運賃" : "旧運賃") : `${isPartnerIntl ? activeOperatingCarrier : "ANA"}・予約 ${intlBookingClass}`}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[9px] font-bold text-slate-400 block mb-1">便名</label>
-                  <input type="text" value={flightNumber} onChange={e => setFlightNumber(e.target.value)} placeholder={false ? "JL516" : "NH10"} className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-bold text-[#003184] outline-none" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-slate-400 block mb-1">座席</label>
-                  <input type="text" value={seat} onChange={e => setSeat(e.target.value)} placeholder="5A" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-bold text-[#003184] outline-none" />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-slate-400 block mb-1">機材</label>
-                  <AircraftTypeCombobox value={aircraftType} onChange={(value) => {
-                    setAircraftType(value);
-                    const known = AIRCRAFT_OPTIONS.some((option) => option.value.toLowerCase() === value.trim().toLowerCase());
-                    if (known) setAircraftImagePath(isPartnerIntl ? getPreferredStarAllianceImagePath(value) : getPreferredAircraftImagePath(value, registration));
-                    else if (value.trim()) setAircraftImagePath("");
-                  }} onSelect={(value) => { setAircraftType(value); setAircraftImagePath(isPartnerIntl ? getPreferredStarAllianceImagePath(value) : getPreferredAircraftImagePath(value, registration)); }} />
-                </div>
-                <div>
-                  <label className="text-[9px] font-bold text-slate-400 block mb-1">機体記号</label>
-                  <input type="text" value={registration} onChange={e => { const next = e.target.value.toUpperCase(); setRegistration(next); if (getFlyingHonuImagePath(next) || aircraftType.toUpperCase().includes("380")) setAircraftImagePath(getPreferredAircraftImagePath(aircraftType, next)); }} placeholder="JA01AN" className="w-full bg-slate-50 border border-slate-200 rounded-lg p-2 text-sm font-bold text-[#003184] outline-none uppercase" />
-                </div>
-              </div>
-              {flightMode !== "domestic" && <p className="mt-3 text-[10px] font-bold text-slate-500">{isPartnerIntl ? "スターアライアンス運航便：スタアラ塗装のみ" : "ANA運航便：ANA塗装のみ"}</p>}
-                  {visibleAircraftImageOptions.length > 0 && <div className="mt-2 grid grid-cols-2 gap-2">
-                  {visibleAircraftImageOptions.map((option) => <button key={option.path} type="button" aria-pressed={aircraftImagePath === option.path} onClick={() => setAircraftImagePath(option.path)} className={`overflow-hidden rounded-lg border text-left ${aircraftImagePath === option.path ? "border-blue-600 ring-2 ring-blue-100" : "border-slate-200"}`}>
-                  <Image src={option.path} alt="" width={400} height={160} className="h-20 w-full object-cover" />
-                    <span className="block px-2 py-1.5 text-[10px] font-bold text-slate-700">{option.label}{aircraftImagePath === option.path ? " ✓" : ""}</span>
-                </button>)}
-                <button type="button" onClick={() => aircraftImageInputRef.current?.click()} aria-pressed={Boolean(aircraftCustomImageId)} className={`overflow-hidden rounded-lg border text-left transition-colors ${aircraftCustomImageId ? "border-blue-600 ring-2 ring-blue-100" : "border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/40"}`}>
-                  {aircraftCustomImageSrc ? <Image unoptimized src={aircraftCustomImageSrc} alt="アップロードした背景画像" width={400} height={160} className="h-20 w-full object-cover" /> : <div className="flex h-20 items-center justify-center bg-slate-50 text-slate-400">
-                    <svg viewBox="0 0 120 60" className="h-12 w-24" fill="currentColor" aria-hidden="true"><path d="M58 3c-2 0-3 2-3 4v16L7 37c-3 1-4 3-4 5 0 3 2 4 5 4l47-9v8L37 54c-2 1-3 2-3 3h51c0-1-1-2-3-3L65 45v-8l47 9c3 0 5-1 5-4 0-2-2-4-5-5L65 23V7c0-2-3-4-7-4Z" /></svg>
-                  </div>}
-                  <span className="block px-2 py-1.5 text-[10px] font-bold text-slate-700">{aircraftCustomImageId ? "自分の画像 ✓（選択中）" : "自分の画像をアップロード"}</span>
-                </button>
-              </div>}
-              <input ref={aircraftImageInputRef} type="file" accept="image/*" onChange={handleAircraftImageUpload} className="hidden" aria-label="背景に使う飛行機画像をアップロード" />
-              {aircraftCustomImageId && <button type="button" onClick={() => { setAircraftCustomImageId(""); setAircraftCustomImageSrc(""); setAircraftImagePath(isPartnerIntl ? getPreferredStarAllianceImagePath(aircraftType) : getPreferredAircraftImagePath(aircraftType, registration)); setAircraftImageMessage("既定の塗装画像に戻しました。"); }} className="mt-2 rounded-lg border border-slate-200 px-3 py-1.5 text-[10px] font-bold text-slate-600 hover:bg-slate-50">既定の塗装画像に戻す</button>}
-              {aircraftImageMessage && <p role="status" className="mt-2 text-[10px] font-bold text-slate-600">{aircraftImageMessage}</p>}
-            </div>
-            {/* 航空券代 入力エリア (入力完了で自動スクロール) */}
-            <div className="pt-2 border-t border-slate-100">
-              <label className="text-[10px] font-bold text-slate-500 mb-1 flex items-center justify-between uppercase tracking-wider">
-                <span>航空券代 (円) ※{tripType === "roundtrip" ? "往復総額" : "片道金額"}</span>
-                <span className="text-blue-500 text-[9px] font-semibold">確定で結果へ移動</span>
-              </label>
-              <input 
-                type="number" 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-base md:text-lg font-black text-[#003184] focus:ring-2 focus:ring-blue-500 outline-none transition-all" 
-                value={flightMode === "domestic" ? ticketPrice : intlTicketPrice} 
-                onChange={(e) => flightMode === "domestic" ? setTicketPrice(Number(e.target.value)) : setIntlTicketPrice(Number(e.target.value))}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.currentTarget.blur();
-                    scrollToResult();
-                  }
-                }}
-                onBlur={() => {
-                  if (typeof window !== "undefined" && window.innerWidth < 768) {
-                    scrollToResult();
-                  }
-                }}
-              />
-
-              {/* スマホ用: 結果ジャンプボタン */}
-              <button
-                type="button"
-                onClick={scrollToResult}
-                className="md:hidden mt-2.5 w-full py-2.5 bg-blue-50 active:bg-blue-100 text-[#003184] text-xs font-bold rounded-xl border border-blue-200/80 flex items-center justify-center gap-1.5 transition-all shadow-sm"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                </svg>
-                <span>計算結果を見る（{totalPP.toLocaleString()} PP・¥{ppUnitPrice}）</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 計算結果カード (スマホ自動スクロール対象) */}
-          <div ref={resultCardRef} className="md:col-span-5 flex flex-col gap-4 scroll-mt-14">
-            <div className={`${'bg-[#003184]'} rounded-2xl p-6 md:p-8 text-white text-center shadow-lg relative overflow-hidden flex-1 flex flex-col justify-center transform transition-colors duration-300`}>
-              <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-48 w-48" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064" />
-                </svg>
-              </div>
-              
-              <div className="relative z-10 space-y-4 md:space-y-6">
-                <div>
-                  <p className={`text-[10px] font-bold ${'text-blue-300'} tracking-widest uppercase mb-1 md:mb-2`}>{'獲得プレミアムポイント'} <span className={`${'bg-blue-500/50'} px-2 py-0.5 rounded ml-2`}>{tripType === "roundtrip" ? "往復合計" : "片道"}</span></p>
-                  <p className="text-5xl md:text-7xl font-black tracking-tighter drop-shadow-md">{totalPP.toLocaleString()}</p>
-                  <p className="text-xs md:text-sm font-bold opacity-70 mt-1">{'PP'}</p>
-                </div>
-                
-                <div className={`pt-4 md:pt-6 border-t ${'border-blue-700/50'}`}>
-                  <p className={`text-[10px] font-bold ${'text-blue-300'} tracking-widest uppercase mb-1`}>{'PP'}単価</p>
-                  <p className="text-3xl md:text-4xl font-black text-white tracking-tight">¥ {ppUnitPrice}</p>
-                </div>
-
-                <div className={`${'bg-blue-900/40 border-blue-800/50'} rounded-lg p-3 text-[10px] text-white/90 font-medium leading-relaxed text-left border`}>
-                  <span className="text-blue-300 font-bold block mb-1">【片道分の計算式】</span>
-                  
-                  {flightMode === "domestic" ? (
-                    via && manualDistance === getDomDistance(origin, via) + getDomDistance(via, destination) ? (
-                      <>
-                        区間①: floor({getDomDistance(origin, via)} × {domFareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDomDistance(origin, via) * (domFareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
-                        区間②: floor({getDomDistance(via, destination)} × {domFareTypes[fareKey]?.rate} × 2) + <span className="text-yellow-300 font-bold">{boardingBonus}</span> = <span className="text-white font-bold">{Math.floor(getDomDistance(via, destination) * (domFareTypes[fareKey]?.rate || 0) * 2) + boardingBonus} PP</span><br/>
-                        片道合計: <span className="text-white font-bold">{basePP} PP</span>
-                        <p className="mt-1 text-blue-300/50 text-[9px]">※国内線(路線倍率2倍)で端数切り捨て後、ボーナス加算</p>
-                      </>
-                    ) : (
-                      <>
-                        floor({manualDistance} × {domFareTypes[fareKey]?.rate} × 2) ＋ <span className="text-yellow-300 font-bold">{via ? boardingBonus * 2 : boardingBonus}</span> = <span className="text-white font-bold">{basePP} PP</span>
-                        <p className="mt-1 text-blue-300/50 text-[9px]">※国内線(路線倍率2倍)で端数切り捨て後、ボーナス加算</p>
-                      </>
-                    )
-                  ) : (
-                    <>
-                      {isPartnerIntl ? (
-                        <>
-                          floor({partnerManualDistance} × {partnerAccrualRate / 100}) ＋ <span className="text-yellow-300 font-bold">{partnerAccrualConfirmed && partnerAccrualRate >= 100 ? 400 : 0}</span> = <span className="text-white font-bold">{basePP} PP</span>
-                          <p className="mt-1 text-blue-300/80 text-[9px]">※提携会社のAMC対象予約クラスを確認した場合のみ参考計算。路線倍率1倍。</p>
-                        </>
-                      ) : (
-                        <>
-                          floor({intlManualDistance} × {intlClassDetails.rate} × {getIntlRouteMultiplier(intlOrigin, intlDestination).toFixed(1)}{intlRegion ? `(${INTL_REGIONS[intlRegion].label})` : "(区間不明)"}) ＋ <span className="text-yellow-300 font-bold">{intlClassDetails.boardingPoints}</span> = <span className="text-white font-bold">{basePP} PP</span>
-                          <p className="mt-1 text-blue-300/50 text-[9px]">※(TPM × 積算率 × 路線倍率) で端数切り捨て後、ボーナス加算</p>
-                        </>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <button onClick={saveFlightLog} className="w-full py-3.5 md:py-4 bg-[#003184] md:bg-white md:border md:border-slate-200 text-white md:text-[#003184] text-sm font-black rounded-xl hover:bg-blue-900 md:hover:bg-slate-50 shadow-md md:shadow-none hover:shadow-md transition-all flex items-center justify-center group active:scale-95">
-              {tripType === "roundtrip" ? "往復2件を履歴に登録" : "このフライトを履歴に登録"}
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 md:h-5 md:w-5 ml-2 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M14 5l7 7m0 0l-7 7m7-7H3" /></svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* スマホ専用: 常時表示のフローティング結果バー (リキッドタブバーの上に浮遊) */}
-      <div className="md:hidden fixed z-40 inset-x-3 bottom-[calc(4.75rem+env(safe-area-inset-bottom,0px))] max-w-sm mx-auto pointer-events-auto">
-        <div
-          onClick={scrollToResult}
-          className={`${'bg-[#002561]/95 border-blue-400/40 shadow-[0_8px_32px_rgba(0,37,97,0.35)]'} backdrop-blur-xl border text-white rounded-2xl p-2.5 flex items-center justify-between cursor-pointer active:scale-[0.98] transition-transform`}
+    <div className="min-h-screen min-w-0 bg-[#F4F7FB] pb-32 font-sans text-slate-900">
+      {/* 透過・白ヘッダー (カンプ: フライト登録 / ✕) */}
+      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3.5 flex items-center justify-between shadow-xs">
+        <div className="w-8" />
+        <h1 className="text-base font-black tracking-tight text-slate-900">フライト登録</h1>
+        <button
+          type="button"
+          onClick={() => router.push("/logs")}
+          aria-label="閉じる"
+          className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
         >
-          <div className="flex items-center gap-2.5 pl-1 min-w-0">
-            <div className={`${'bg-blue-500/30 text-yellow-300'} p-2 rounded-xl shrink-0`}>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <div className={`text-[10px] ${'text-blue-200'} font-bold flex items-center gap-1.5 truncate`}>
-                <span>獲得{'PP'} ({tripType === "roundtrip" ? "往復" : "片道"})</span>
-                <span className={`text-[9px] text-yellow-300 ${'bg-blue-900/80'} px-1.5 py-0.5 rounded font-mono font-bold`}>¥{ppUnitPrice}/{'PP'}</span>
-              </div>
-              <div className="text-lg font-black text-white leading-tight mt-0.5">
-                {totalPP.toLocaleString()} <span className={`text-[10px] font-bold ${'text-blue-300'}`}>{'PP'}</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          ✕
+        </button>
+      </header>
+
+      <div className="max-w-md sm:max-w-xl mx-auto px-4 pt-4 space-y-4">
+
+        {/* ================= 1. DUAL PILL SEGMENTED CONTROL ================= */}
+        <div className="space-y-2">
+          {/* 1段目: 片道 / 往復 */}
+          <div role="group" aria-label="旅程タイプ" className="grid grid-cols-2 p-1 bg-slate-200/70 rounded-full">
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                saveFlightLog();
-              }}
-              className={`bg-white ${'text-[#002561] hover:bg-blue-50'} px-4 py-2 rounded-xl text-xs font-black shadow-md active:scale-95 transition-all flex items-center gap-1`}
+              aria-pressed={tripType === "oneway"}
+              onClick={() => setTripType("oneway")}
+              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
+                tripType === "oneway"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
             >
-              登録
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-              </svg>
+              片道
+            </button>
+            <button
+              type="button"
+              aria-pressed={tripType === "roundtrip"}
+              onClick={() => setTripType("roundtrip")}
+              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
+                tripType === "roundtrip"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              往復
+            </button>
+          </div>
+
+          {/* 2段目: 国内線 / 国際線 / 提携航空会社 */}
+          <div role="group" aria-label="運航区分" className="grid grid-cols-3 p-1 bg-slate-200/70 rounded-full">
+            <button
+              type="button"
+              aria-pressed={flightMode === "domestic"}
+              onClick={() => setFlightMode("domestic")}
+              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
+                flightMode === "domestic"
+                  ? "bg-white text-[#003184] shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              国内線
+            </button>
+            <button
+              type="button"
+              aria-pressed={flightMode === "international"}
+              onClick={() => setFlightMode("international")}
+              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
+                flightMode === "international"
+                  ? "bg-white text-[#003184] shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              国際線
+            </button>
+            <button
+              type="button"
+              aria-pressed={flightMode === "star-alliance"}
+              onClick={() => setFlightMode("star-alliance")}
+              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
+                flightMode === "star-alliance"
+                  ? "bg-white text-[#003184] shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              提携航空会社
             </button>
           </div>
         </div>
+
+        {/* ================= 2. 搭乗日入力カード ================= */}
+        <div className="bg-white rounded-2xl p-3.5 border border-slate-200/80 shadow-xs space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="text-base text-slate-400">📅</span>
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 block uppercase">搭乗日</span>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={handleOutboundDateChange}
+                  className="text-xs sm:text-sm font-bold text-slate-800 bg-transparent outline-none cursor-pointer"
+                />
+              </div>
+            </div>
+            {flightMode === "domestic" && (
+              <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${isNewFare ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                {isNewFare ? "2026新運賃" : "現行運賃"}
+              </span>
+            )}
+          </div>
+
+          {tripType === "roundtrip" && (
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="text-base text-slate-400">🔄</span>
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 block uppercase">復路搭乗日</span>
+                  <input
+                    type="date"
+                    ref={returnDateRef}
+                    value={returnDate}
+                    onChange={(e) => setReturnDate(e.target.value)}
+                    className="text-xs sm:text-sm font-bold text-slate-800 bg-transparent outline-none cursor-pointer"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ================= 3. ROUTE INPUT GROUP WITH FLOATING SWAP ================= */}
+        <div className="relative bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs">
+          {/* 出発地 */}
+          <div className="pr-12">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-blue-500">🛫</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">出発地</span>
+            </div>
+            {flightMode === "domestic" ? (
+              <SearchableAirportSelect
+                label=""
+                value={origin}
+                onChange={setOrigin}
+              />
+            ) : flightMode === "international" ? (
+              <SearchableAirportSelect
+                label=""
+                value={intlOrigin}
+                onChange={setIntlOrigin}
+                isIntl
+              />
+            ) : (
+              <SearchableAirportSelect
+                label=""
+                value={partnerOrigin}
+                onChange={setPartnerOrigin}
+                isIntl
+              />
+            )}
+          </div>
+
+          {/* ディバイダー */}
+          <div className="border-t border-slate-100 my-3 relative" />
+
+          {/* フローティング スワップボタン (⇅) */}
+          <button
+            type="button"
+            onClick={handleSwapAirports}
+            title="出発地と到着地を入れ替え"
+            aria-label="出発地と到着地を入れ替え"
+            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white border border-slate-200 shadow-md flex items-center justify-center text-slate-600 hover:text-[#003184] hover:bg-blue-50 active:scale-95 transition-all"
+          >
+            <span className="text-base font-bold">⇅</span>
+          </button>
+
+          {/* 到着地 */}
+          <div className="pr-12">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-emerald-500">🛬</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase">到着地</span>
+            </div>
+            {flightMode === "domestic" ? (
+              <SearchableAirportSelect
+                label=""
+                value={destination}
+                onChange={setDestination}
+              />
+            ) : flightMode === "international" ? (
+              <SearchableAirportSelect
+                label=""
+                value={intlDestination}
+                onChange={setIntlDestination}
+                isIntl
+              />
+            ) : (
+              <SearchableAirportSelect
+                label=""
+                value={partnerDestination}
+                onChange={setPartnerDestination}
+                isIntl
+              />
+            )}
+          </div>
+        </div>
+
+        {/* ================= 4. 運航会社・予約クラス・積算率 ================= */}
+        <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-3">
+          {/* 運航会社 */}
+          <div className="flex items-center justify-between gap-3 py-1">
+            <span className="text-xs font-bold text-slate-600 shrink-0">運航会社</span>
+            {flightMode === "star-alliance" ? (
+              <select
+                value={intlOperatingCarrier}
+                onChange={(e) => setIntlOperatingCarrier(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[200px]"
+              >
+                {STAR_ALLIANCE_CARRIERS.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name} ({c.code})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <span className="text-xs font-black text-[#003184] bg-blue-50 px-3 py-1.5 rounded-xl">
+                ANA（全日本空輸）
+              </span>
+            )}
+          </div>
+
+          {/* 運賃・予約クラス */}
+          <div className="flex items-center justify-between gap-3 py-1 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-600 shrink-0">
+              {flightMode === "domestic" ? "運賃種別" : "予約クラス"}
+            </span>
+            {flightMode === "domestic" ? (
+              <select
+                value={fareKey}
+                onChange={(e) => setFareKey(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
+              >
+                {Object.keys(domFareTypes).map((k) => (
+                  <option key={k} value={k}>
+                    {domFareTypes[k].label} ({Math.round(domFareTypes[k].rate * 100)}%)
+                  </option>
+                ))}
+              </select>
+            ) : flightMode === "international" ? (
+              <select
+                value={intlBookingClass}
+                onChange={(e) => setIntlBookingClass(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
+              >
+                {Object.keys(ANA_INTL_BOOKING_CLASSES).map((k) => (
+                  <option key={k} value={k}>
+                    {ANA_INTL_BOOKING_CLASSES[k].label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <select
+                value={intlBookingClass}
+                onChange={(e) => setIntlBookingClass(e.target.value)}
+                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
+              >
+                {PARTNER_ACCRUAL_CLASSES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          {/* 積算率 */}
+          <div className="flex items-center justify-between gap-3 py-1 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-600 shrink-0">積算率</span>
+            <span className="text-xs font-black text-slate-900 bg-slate-100 px-3 py-1.5 rounded-xl">
+              {flightMode === "domestic"
+                ? `${Math.round((domFareTypes[fareKey]?.rate || 1) * 100)}%`
+                : flightMode === "international"
+                ? `${Math.round((intlClassDetails?.rate || 1) * 100)}%`
+                : `${partnerAccrualRate}%`}
+            </span>
+          </div>
+
+          {/* 運賃金額入力 */}
+          <div className="flex items-center justify-between gap-3 py-1 border-t border-slate-100">
+            <span className="text-xs font-bold text-slate-600 shrink-0">航空券費用 (円)</span>
+            <input
+              type="number"
+              step="1000"
+              value={flightMode === "domestic" ? ticketPrice : intlTicketPrice}
+              onChange={(e) => {
+                const val = Number(e.target.value) || 0;
+                if (flightMode === "domestic") setTicketPrice(val);
+                else setIntlTicketPrice(val);
+              }}
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-bold text-right text-slate-800 outline-none w-28 tabular-nums"
+            />
+          </div>
+        </div>
+
+        {/* 詳細オプション・機材情報 (折りたたみアコーディオン) */}
+        <details className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs text-xs">
+          <summary className="font-bold text-slate-700 cursor-pointer flex items-center justify-between">
+            <span>便名・機材・経由地の詳細入力</span>
+            <span className="text-slate-400">＋</span>
+          </summary>
+          <div className="mt-4 space-y-3 pt-3 border-t border-slate-100">
+            {flightMode === "domestic" && (
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">経由地 (任意)</label>
+                <SearchableAirportSelect label="" value={via} onChange={setVia} allowEmpty />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">便名</label>
+                <input
+                  type="text"
+                  placeholder="NH841"
+                  value={flightNumber}
+                  onChange={(e) => setFlightNumber(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">座席</label>
+                <input
+                  type="text"
+                  placeholder="12A"
+                  value={seat}
+                  onChange={(e) => setSeat(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">機材タイプ</label>
+              <AircraftTypeCombobox value={aircraftType} onChange={setAircraftType} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">機体記号 (レジ)</label>
+              <input
+                type="text"
+                placeholder="JA801A"
+                value={registration}
+                onChange={(e) => setRegistration(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-500 mb-1">搭乗・機体写真 (任意)</label>
+              <input
+                ref={aircraftImageInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleAircraftImageUpload}
+                className="w-full text-xs text-slate-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-slate-200 file:text-slate-700 hover:file:bg-slate-300 cursor-pointer"
+              />
+              {aircraftImageMessage && (
+                <p className="mt-1 text-[10px] font-bold text-amber-600">{aircraftImageMessage}</p>
+              )}
+            </div>
+          </div>
+        </details>
+
+        {/* ================= 5. RESULT SUMMARY CARD (カンプ準拠: ダークネイビーグラデーション) ================= */}
+        <div
+          ref={resultCardRef}
+          className="bg-gradient-to-br from-[#0B192C] via-[#102A4A] to-[#1E3E62] text-white rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden space-y-3"
+        >
+          <div className="flex items-center justify-between text-white/80">
+            <span className="text-xs font-bold tracking-wide">獲得プレミアムポイント</span>
+            <span className="text-[10px] bg-white/10 px-2.5 py-0.5 rounded-full font-bold">
+              {tripType === "roundtrip" ? "往復合計" : "片道"} · ¥{ppUnitPrice}/PP
+            </span>
+          </div>
+
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl sm:text-5xl font-black text-[#38BDF8] tracking-tight tabular-nums">
+              {totalPP.toLocaleString()}
+            </span>
+            <span className="text-lg font-black text-white/90">PP</span>
+          </div>
+
+          <div className="text-[11px] text-white/70 leading-relaxed pt-1 border-t border-white/10">
+            区間基本マイル {flightMode === "domestic" ? manualDistance : intlManualDistance} × 積算率{" "}
+            {flightMode === "domestic"
+              ? `${Math.round((domFareTypes[fareKey]?.rate || 1) * 100)}%`
+              : `${Math.round((intlClassDetails?.rate || 1) * 100)}%`}
+            {flightMode === "domestic" ? " × 路線倍率 2.0倍" : ""}
+          </div>
+        </div>
+
+        {/* エラーメッセージ */}
+        {saveFlightError && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs font-bold text-rose-700">
+            {saveFlightError}
+          </div>
+        )}
+
+        {/* ================= 6. PRIMARY CTA BUTTON ================= */}
+        <button
+          type="button"
+          disabled={isSavingFlight}
+          onClick={saveFlightLog}
+          className="w-full bg-[#2878F0] hover:bg-[#1E6AD8] text-white font-black py-4 px-4 rounded-2xl text-base shadow-[0_8px_24px_rgba(40,120,240,0.35)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+        >
+          {isSavingFlight ? "保存中..." : "この内容で登録"}
+        </button>
+
       </div>
     </div>
   );
 }
-
-
-
