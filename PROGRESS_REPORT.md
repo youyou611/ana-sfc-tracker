@@ -159,6 +159,31 @@
 - **検証:** `npx tsc --noEmit` 成功。`npx eslint app\calc\page.tsx app\hooks\useFlightData.ts app\lib\db.ts` 成功。`npm run build` 成功（Next.js 16.1.6 / Webpack、15ルート生成）。`localhost:3000/calc` と `localhost:3011/calc` は接続できず、実ブラウザー上で保存／登録後の遷移を確認できていない。
 - **残課題:** ユーザーの報告した実際のブラウザーエラー文・コンソールログは未取得。修正でエラーを画面に出せるようにしたが、ユーザー環境で再現・確認し、固有の保存制限やブラウザー側の問題があれば引き続き調べる。
 
+# 2026-10-15 厳格監査に基づく構造・UI調整
+
+- **画像名監査:** `public/aircraft/ana/ana-A380.jpg` は既に正しい名前で存在し、`app/lib/aircraftImages.ts` の参照も一致。監査時点で `ana-A380 .jpg` は存在しなかったためリネーム不要。
+- **重複ユーティリティ:** 現行の `app/` に `worldDistance.ts` は存在せず、ANAアプリの参照もなし。共有版 `shared/worldDistance.ts` は `shared/WorldDistanceCalculator.tsx` が利用するため保持。
+- **一時ファイル:** `.gitignore` に `*.tmp` が既に追加済み。参照なしの一時ファイル `plan-update.tmp` は前の整理タスクで削除済み。
+- **遷移・背景:** `app/layout.tsx` のbody背景を `#070F1E` に明示。`app/globals.css` のhtml/body背景重複を整理。`app/ClientLayout.tsx` は遷移時のクロスフェードを `AnimatePresence mode="wait"` に変更し、モバイルはホーム／フライト／マップ／計算機／設定の5タブを使用。
+- **ホーム:** 既存の主役画像・SVG円形進捗・グラススタイルKPI3列・フライト登録CTAを維持し、下部4連アクションカードをコンパクトな補助リンクに統合。
+- **計算機:** 現在の `app/calc/page.tsx` には固定の「獲得PP・結果へ」フローティングバーは既になく、結果カードと登録CTAがページ内に配置されていることを確認。登録ボタンの無効状態に視覚スタイルを追加。
+- **マップ:** 暗いフルスクリーン背景 `#050B14`、2D/3D切り替えとHUDを維持。空データ・読込エラーの案内を半透明グラスオーバーレイに統一し、背景マップが常に見える状態を維持。再試行時のロック解除は `finally` で行う。
+- **Combobox:** `AircraftTypeCombobox` の `useId` ベースのIDを安全な文字に正規化。`query` は開いているときだけ候補検索に使用し、閉じたときは親の現在値を表示する導出値に変更して、初期入力の二重管理を減らす。
+- **検証:** `npx tsc --noEmit` 成功。対象ページ ESLint 成功。`npm run build` 成功（Next.js 16.1.6 / Webpack、15ルート生成）。本番 `next start -p 3041` で `/`、`/calc`、`/map`、`/logs`、`/stats` がすべてHTTP 200。HTMLでホーム4分割カードと計算機固定バーがないこと、マップ暗色背景を確認。
+- **Hydration警告の限界:** Comboboxとルート遷移のコード監査・本番ビルドは完了。ただしこの環境にPlaywright/Puppeteerはなく、ブラウザーのDevTools Consoleを自動取得できていないため、React Warning/Hydration Errorが実行時にも完全に0件であることは未確定。A380画像名の重複バグは現在のファイルシステムでは再現しなかった。
+
+# 2026-10-15 厳格監査・画像名・背景・マップ統合
+
+- **画像アセット:** 実ファイル名が `ana-A380①.jpg` だったため `public/aircraft/ana/ana-A380.jpg` へ統一。`app/lib/aircraftImages.ts` の全該当パス（機種の既定画像、選択肢、JA381A、A380フォールバック）を更新。画像は同一ファイルのリネームで内容は変えていない。
+- **一時ファイル:** `plan-update.tmp` は既に存在しないことを確認。`.gitignore` に `*.tmp` を追加。
+- **背景／ナビ:** `html`、`body`、ルートシェルとページ遷移中のメイン領域を `#070F1E` に設定。重複した `:root` 背景宣言を整理。ボトムナビは既存の5項目（ホーム、フライト、マップ、計算機、設定）のままダークグラスと青い選択状態へ統一。ページ切り替えの exit wait を外し、背景が見える空白時間を短縮。
+- **ホーム:** 机窓／富士山のヒーローを縦方向へ拡大し、円形ゲージ、現在PP／目標PP、3列KPI（残りPP・平均PP単価・累計費用）、主CTAのまとまりを維持。二重の横バー進捗はなく、旧「次のアクション」4分割セクションは現行コードに存在しない。既存の統計・ガイドは下部ツールセクションで利用可能。
+- **`/calc` React警告:** 機材コンボボックスの固定listbox IDと、`useEffect` 内での同期的 setState を解消。React `useId` ベースの候補ID、状態から導出する検索文字列、ARIA combobox/listbox、キーボード選択（上下・Enter・Escape）へ整理。遅延blurタイマーは廃止し、空港候補も同じくタイマーなしで閉じる操作に整理。現行 `/calc` には指定の固定「獲得PP／結果へ」フローティングバーは存在しない。
+- **マップ:** ANA固有の `app/components/WorldRouteMap.tsx` に残っていた別APIの `maplibre-gl` / `react-globe.gl` 実装を、`shared/route-map/WorldRouteMap.tsx` を呼ぶ薄いアダプターに置換。共有側に `fullScreen` レンダリングモードを追加し、地図をプレビュカード／ボトムシートなしで描画。2D暗色世界地図、同じ共有ジオメトリからの3D地球儀、HUD、路線／空港詳細を直接表示し、app-levelのボトムナビを地図の上に維持。ルート／空港が0件の場合も地図を表示したままグラス案内をオーバーレイ。Natural Earth説明はファーストビューから削除し、距離が計算に使われない旨の短い注意書きを残す。JAL側はデフォルト動作（プレビュー＋Drawer）を維持。
+- **距離ファイル統合:** `app/components/worldDistance.ts` と `app/lib/worldDistance.ts` は前のリポジトリ整理作業で削除済みで、共有版 `shared/worldDistance.ts` が共通実装。今回、旧ファイルを再生成していない。
+- **検証:** `npx tsc --noEmit` 成功。対象TS/TSXの `npx eslint` 成功（エラー／警告なし）。`npm run build` 成功（Next.js 16.1.6 / Webpack、15ルート生成）。CSSファイル単体は現在のESLint設定対象外のためLint対象から除外し、ビルドに含めて確認。
+- **未完了:** 実ブラウザーでの全画面／モバイル描画、Reactの実行時コンソール0件を直接確認できていない。静的Lintとビルドは成功しているが、コンソール完全ゼロは未検証として扱う。
+
 # 2026-10-12 2D / 3D 路線マップ UI/UX 再設計
 
 - **対象:** ANA SFC Tracker の路線マップ画面。ホーム、計算機、搭乗記録画面の再設計は行っていない。
@@ -243,4 +268,65 @@
 - **検証:** `npx.cmd eslint shared/route-map/WorldRouteMap.tsx shared/route-map/geometry.ts` 成功。`/map`は既存開発サーバー`http://127.0.0.1:3027/map`からHTTP 200を返す。スクリーンショット取得スクリプトを試したが画像は生成されず、実ブラウザーの視覚比較・ドラッグ/ズーム/路線選択の実操作は未確認。既存サーバーやユーザーのブラウザーを停止していない。
 - **ビルド阻害:** `npx.cmd tsc --noEmit`と`npm.cmd run build`はいずれもリポジトリのExpoサンプル`my-app/src/...`で既存の`@/components/animated-icon`、`@/components/app-tabs`、`@/constants/theme`等の未解決importにより失敗。今回編集した共有地図ファイルはESLintで成功したが、全体の型チェック/本番ビルド成功とは扱わない。
 - **残課題:** 参考マスター画像をレンダリング直後の同一状態で並べた比較は、現在のサーバー/ブラウザー接続では取得できず未実施。今回の陰影はSVGによる視覚的な改善であり、地形/雲テクスチャや物理的照明を実現したものではない。
+
+## 2026-10-16 アプリ名称・利用規約・プライバシーポリシー
+
+- **状態:** 実装完了、静的検証・本番ビルド成功。実ブラウザーでの目視確認と実際の問い合わせ窓口の公開確認は未実施。
+- **目的:** アプリの利用者向けブランド表記を「SFC Tracker」に統一し、非公式ツールとしての立場、計算結果やローカルデータに関する免責、画像の説明、プライバシー方針を分かりやすく案内する。
+- **変更ファイル:** `app/layout.tsx`、`app/manifest.ts`、`app/page.tsx`、`app/settings/page.tsx`、`app/guide/page.tsx`、`app/terms/page.tsx`（新規）、`PROGRESS_REPORT.md`。
+- **実装内容:**
+  - `layout.tsx` のtitle、applicationName、Apple Web App title、description、keywordsをSFC Trackerに更新。SEO説明文ではANAのSFC修行・PP管理に対応した非公式ツールである文脈を維持。
+  - `manifest.ts` のname、short_name、descriptionを更新し、ブルー基調のtheme_colorと既存PWA設定を維持。
+  - ホーム、設定、ガイドの主なブランド見出しから「ANA SFC TRACKER」の表示を取り除き「SFC TRACKER」に変更。PP計算、ANA運航区分、保存キー、DB名、既存バックアップ形式などの内部識別子は互換性のため維持。
+  - `/terms` に非公式性、航空会社へ問い合わせないこと、PP/マイル/距離等の計算結果に関する免責、IndexedDB/LocalStorageのローカル保存とJSONバックアップ、画像の権利、Cookie・広告・アクセス解析、利用条件、運営者情報をダークネイビー/ブルー基調のカードで追加。
+  - 設定画面下部に非公式表示と規約ページへのリンクを追加。
+  - Google Analyticsは現行コード内で確認できないため導入済みとは記載せず、将来導入する場合の方針として記述。現在読み込まれているGoogle AdSenseを踏まえ、第三者サービスのCookie利用可能性を説明。
+- **検証:** `npx.cmd tsc --noEmit` 成功。変更対象TSXの `npx.cmd eslint app/layout.tsx app/manifest.ts app/ClientLayout.tsx app/page.tsx app/settings/page.tsx app/guide/page.tsx app/terms/page.tsx` 成功（エラー・警告なし）。`npm.cmd run build` 成功（Next.js 16.1.6 Webpack、16ページ生成、`/terms`の静的生成を確認）。
+- **未実施:** 実ブラウザーによるデザイン目視とリンクの手動操作、実際の運営者連絡先の確認。
+- **公開前に必要な作業:** `/terms` の運営者・問い合わせ案内のプレースホルダーを、実際に利用できる連絡先へ置き換える。Google Analytics等を導入した場合は、実際のデータ処理・設定と方針文が一致していることを再確認する。
+
+## 2026-10-16 計算機の入力UI・経由区間・更新履歴
+
+- **状態:** 実装完了。変更対象ファイルのESLintは警告なしで成功。全体の型チェックと本番ビルドは、今回変更していない`app/guide/page.tsx`と`app/map/page.tsx`の型エラーで失敗。
+- **変更ファイル:** `app/calc/page.tsx`、`app/types.ts`、`app/settings/page.tsx`。
+- **計算機UI:** 右上の閉じるボタンを除去。上段を「国内線／国際線／提携航空会社」、下段を「片道／往復」の順に変更。提携航空会社候補からANA（NH）を除外し、古い保存状態がNHを指していた場合も有効な候補に差し替える。
+- **クラス・積算率:** ファースト、ビジネス、プレエコ、エコノミーの客室クラス選択を追加。国内線は客室クラスに応じた運賃を選択可能。国際線・提携航空会社は予約クラスと積算率（0～200%）を入力でき、入力率をPP計算に使用する。
+- **経由地と区間別記録:** 出発地・到着地カードに経由地追加CTAを配置。経由地ごとに空港、便名、座席、客室クラス、予約クラス、積算率、運航会社コードを入力できるようにし、`FlightLogEx.legs`へ任意の区間配列として保存。既存ログとの互換性のため`legs`はオプショナル。
+- **設定:** ヘッダーとシステム情報のバージョンを1.2.0に更新し、「バージョン履歴・更新履歴」を追加。
+- **検証:** `npx.cmd eslint app/calc/page.tsx app/settings/page.tsx app/types.ts` — 最終実行は成功（エラー・警告なし）。`npx.cmd tsc --noEmit` — 失敗。`.next/dev/types/app/guide/page.ts`が`AirportAndGuideSection`をpage exportとして検出する型エラー、および`app/map/page.tsx`から`WorldRouteMap`へ渡す`title`プロパティの型不一致を報告。`npm.cmd run build` — Webpackのコンパイルは成功したが、Next.js TypeScript検証で同じ`app/guide/page.tsx`のexportエラーにより失敗。どちらも今回の変更ファイル外。
+- **未実施:** 実ブラウザーの手動操作・視覚確認。複数経由地で各区間を保存した実データの確認も未実施。
+
+## 2026-10-16 ホーム表示・通知・画像・ナビゲーション
+
+- **変更ファイル:** `app/page.tsx`、`app/ClientLayout.tsx`、`app/lib/aircraftImages.ts`、`app/guide/page.tsx`。
+- **ホーム下部:** ホームヒーローの`overflow-hidden`が固定高さのセクション内で子要素を切り落とすおそれがあったため除去。最近のフライト領域に相対位置と下余白を追加し、メニューが確実に下へ続くようにした。ホームの補助リンクを統計、マップ・ガイド、SFC修行ガイド、設定のクイックカードに変更。
+- **通知ベル:** `/settings`へのリンクをボタンに置き換え、ホーム上の通知ポップオーバーを実装。開閉・閉じる操作とガイドへの導線を追加。個別通知がない旨も表示。
+- **フライト画像:** ホームの最近のフライトが常に`/images/hero-wing-fuji.jpg`を使っていたのを、ログの機材・運航会社・登録済み塗装に対応する`getAircraftImagePath`へ変更。`aircraftImages.ts`では、有効な保存済み`aircraftImagePath`を既定画像選択より優先するよう変更。
+- **ナビ:** スマホ・PC共通のメインナビに「統計」を追加。SFCガイドはホームのクイックメニューと設定画面の案内から引き続き開ける。
+- **ガイド型エラー:** `app/guide/page.tsx`で補助コンポーネント`GuideContent`を定義し、ページモジュールの余計な名前付きexportとしてNext.jsに解釈されないようにした。
+- **検証:** 対象ファイルESLintは成功（警告なし）。本番ビルドは16ルート生成まで成功。ただし直近ビルドは完了コードが0ではなく終了時のフック／環境エラー疑いがあるため、再実行による確認が必要。`npx.cmd tsc --noEmit`では共有`shared/route-map/WorldRouteMap.tsx`の`maplibre-gl` default export未定義エラーが残った。
+
+## 2026-10-16 マップスタイルをOpenFreeMap Libertyへ変更
+
+- **変更ファイル:** `shared/route-map/WorldRouteMap.tsx`。
+- **変更内容:** MapLibre GLのベースマップURLを `https://tiles.openfreemap.org/styles/liberty` に変更。従来のCARTO Dark Matterラスタースタイルを使用せず、OpenFreeMap LibertyのスタイルJSONを読み込む方式にした。登録済みフライトから生成する航路・空港ポイント、クリック時のポップアップ、地図の2D/3D投影切り替え、カメラ操作は既存実装を維持。
+- **検証:** `npx.cmd eslint shared/route-map/WorldRouteMap.tsx` — エラー・警告なし。`npx.cmd tsc --noEmit` — 成功。`npm.cmd run build` — 成功（Next.js 16.1.6 Webpack、16ルート生成）。
+- **未実施:** OpenFreeMap配信先へブラウザーからアクセスした実表示の目視確認、航路・ラベルがLibertyスタイル上で重なりなく描画されるかの実操作確認。
+
+## 2026-10-16 MapLibre航路ラインのデータ連携・描画修正
+
+- **変更ファイル:** `shared/route-map/WorldRouteMap.tsx`。
+- **データ整形:** 出発・到着・経由空港コードをトリムし大文字化して検索。座標の未定義、`NaN`、緯度経度範囲外、大圏ラインの不正座標を除外し、空ではない有効座標のみGeoJSONへ渡す。
+- **初期化とレイヤー:** MapLibreの`load`と`styledata`イベントに加え`isStyleLoaded()`をチェック。ソース／レイヤーの存在を確認してから追加する冪等な初期化に変更し、初期化完了前に更新されたデータもスタイル準備完了時に同期する。
+- **再描画:** 航路・空港のGeoJSON sourceに最新データを`setData()`で反映。イベントリスナーはcleanup時に解除し、地図破棄後に古いコールバックが反映されないようガード。
+- **視認性とカメラ:** 航路ラインをシアン（`#00d4ff`）、幅3px、opacity 0.8に統一し、ぼかしたグローを追加。2D初期表示は有効な全路線の出発・到着空港を含むboundsへ`fitBounds`し、padding 50、duration 1000msで自動調整。
+- **検証:** `npx.cmd eslint shared/route-map/WorldRouteMap.tsx` — 成功（エラー・警告なし）。`npx.cmd tsc --noEmit` — 成功。`npm.cmd run build` — 成功（16ルート生成）。ブラウザーの実データ描画と手動操作の最終目視は未実施。
+
+## 2026-10-16 MapLibre Worker読み込みエラー修正
+
+- **原因:** MapLibre GL JS v6はバンドラー配下でworker URLがアプリのチャンク相対パスを指すと、Workerの読み込みに失敗することがある。Next.js Turbopack環境で明示的な同一オリジンURLを設定する。
+- **変更ファイル:** `shared/route-map/WorldRouteMap.tsx`、`next.config.ts`、`public/maplibre/maplibre-gl-worker.mjs`、`public/maplibre/maplibre-gl-shared.mjs`。
+- **実装:** `maplibregl.setWorkerUrl('/maplibre/maplibre-gl-worker.mjs?v=' + maplibregl.getVersion())` によりバージョン付きの同一オリジンworker URLを指定。Next.js/Turbopack向けにMapLibre公式ドキュメントが案内するよう、workerと同階層にsharedモジュールを配置。`next.config.ts`実行時にインストール済みMapLibreの2アセットを`public/maplibre/`へコピーし、更新後も同期可能。
+- **検証:** `npx.cmd eslint next.config.ts shared/route-map/WorldRouteMap.tsx` — エラー・警告なし。`npx.cmd tsc --noEmit` — 成功。`npm.cmd run build` — 成功（16ルート生成）。Turbopack開発サーバーでworker URLと`/map`のHTTP 200を確認。
+- **未実施:** 実ブラウザーのDevToolsでWorkerが正常に起動し、ベースマップとGeoJSONレイヤーが共に表示されることの手動目視確認。
 
