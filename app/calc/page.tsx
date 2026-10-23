@@ -6,7 +6,7 @@ import { getDomBaseMiles } from "./domesticMileage";
 import { INTL_AIRPORTS, INTL_REGIONS, getIntlBaseMiles, getIntlRegion, getIntlRouteMultiplier } from "./internationalMileage";
 import { useFlightData } from "../hooks/useFlightData";
 import { saveImage } from "../lib/db";
-import { Airline } from "../types";
+import { Airline, type FlightLegDetail } from "../types";
 import AircraftTypeCombobox from "../components/AircraftTypeCombobox";
 import { getAircraftImageOptions, getFlyingHonuImagePath, getPreferredAircraftImagePath, getPreferredStarAllianceImagePath, getStarAllianceBackgroundOptions } from "../lib/aircraftImages";
 import { getAnaDomesticClass, type TravelClass } from "../lib/travelClass";
@@ -74,7 +74,7 @@ const SearchableAirportSelect = ({ label, value, onChange, allowEmpty = false, i
           }}
           onChange={(e) => { setSearch(e.target.value); setIsOpen(true); }}
           onFocus={() => { setIsOpen(true); setSearch(""); }}
-          onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+          onBlur={() => setIsOpen(false)}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-400">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
@@ -141,7 +141,7 @@ const ANA_INTL_BOOKING_CLASSES: Record<string, { label: string; rate: number; tr
 const STAR_ALLIANCE_CARRIERS = [
   { code: "A3", name: "エーゲ航空" }, { code: "AC", name: "エア・カナダ" },
   { code: "CA", name: "中国国際航空" }, { code: "AI", name: "エア・インディア" },
-  { code: "NZ", name: "ニュージーランド航空" }, { code: "NH", name: "ANA（全日本空輸）" },
+  { code: "NZ", name: "ニュージーランド航空" },
   { code: "OZ", name: "アシアナ航空" }, { code: "OS", name: "オーストリア航空" },
   { code: "AV", name: "アビアンカ航空" }, { code: "SN", name: "ブリュッセル航空" },
   { code: "CM", name: "コパ航空" }, { code: "OU", name: "クロアチア航空" },
@@ -183,6 +183,17 @@ const PARTNER_ACCRUAL_CLASSES = [
   { code: "X", label: "X — 積算対象外の可能性", travelClass: "economy" as TravelClass },
 ] as const;
 
+const CABIN_OPTIONS: { value: TravelClass; label: string }[] = [
+  { value: "first", label: "ファースト" },
+  { value: "business", label: "ビジネス" },
+  { value: "premium-economy", label: "プレエコ" },
+  { value: "economy", label: "エコノミー" },
+];
+
+function createLegDetail(origin: string, destination: string): FlightLegDetail {
+  return { origin, destination, flightNumber: "", seat: "", bookingClass: "Y", accrualRate: 100, travelClass: "economy" };
+}
+
 export default function FlightCalculator() {
   const router = useRouter();
   const today = new Date().toISOString().split('T')[0];
@@ -211,12 +222,17 @@ export default function FlightCalculator() {
   const [date, setDate] = useState(today);
   const [returnDate, setReturnDate] = useState(today);
   const [origin, setOrigin] = useState("ITM");
-  const [via, setVia] = useState("OKA");
+  const [via, setVia] = useState("");
+  const [viaStops, setViaStops] = useState<string[]>([]);
+  const [legDetails, setLegDetails] = useState<FlightLegDetail[]>([]);
   const [destination, setDestination] = useState("ISG");
   const [fareKey, setFareKey] = useState("old_fare7"); 
   const [boardingBonus, setBoardingBonus] = useState(400);
   const [ticketPrice, setTicketPrice] = useState(25000);
   const [isFirstClassOnly, setIsFirstClassOnly] = useState(false);
+  const [intlTravelClass, setIntlTravelClass] = useState<TravelClass>("economy");
+  const [intlAccrualRate, setIntlAccrualRate] = useState(100);
+  const [partnerTravelClass, setPartnerTravelClass] = useState<TravelClass>("economy");
   const [manualDistance, setManualDistance] = useState<number>(0); 
 
   // 国際線用の状態
@@ -225,12 +241,58 @@ export default function FlightCalculator() {
   const [partnerOrigin, setPartnerOrigin] = useState("HND");
   const [partnerDestination, setPartnerDestination] = useState("SIN");
   const [intlBookingClass, setIntlBookingClass] = useState("Y");
-  const [intlOperatingCarrier, setIntlOperatingCarrier] = useState("NH");
+  const [intlOperatingCarrier, setIntlOperatingCarrier] = useState("A3");
   const [partnerAccrualRate, setPartnerAccrualRate] = useState(100);
   const [partnerAccrualConfirmed, setPartnerAccrualConfirmed] = useState(false);
   const [intlManualDistance, setIntlManualDistance] = useState<number>(0);
   const [partnerManualDistance, setPartnerManualDistance] = useState<number>(0);
   const [intlTicketPrice, setIntlTicketPrice] = useState(100000);
+
+  const getRoutePoints = (start: string, end: string, stops: string[]) => [start, ...stops.filter(Boolean), end];
+  const getDomesticStops = () => viaStops.length > 0 ? viaStops.filter(Boolean) : (via ? [via] : []);
+  const updateLeg = (index: number, updates: Partial<FlightLegDetail>) => {
+    setLegDetails((current) => {
+      const next = [...current];
+      const points = [origin, ...getDomesticStops(), destination];
+      const existing = next[index] || createLegDetail(points[index] || origin, points[index + 1] || destination);
+      next[index] = { ...existing, ...updates };
+      return next;
+    });
+  };
+  const makeDefaultLeg = (originCode: string, destinationCode: string): FlightLegDetail => {
+    const initialCabin: TravelClass = isFirstClassOnly ? "first" : "economy";
+    const selected = domFareTypes[fareKey];
+    const defaultKey = date >= "2026-05-19" ? (initialCabin === "first" ? "p_c" : "e_i") : (initialCabin === "first" ? "old_fare2" : "old_fare7");
+    const applicableFare = selected && selected.classType === (initialCabin === "first" ? "first" : "economy") ? selected : domFareTypes[defaultKey];
+    return { ...createLegDetail(originCode, destinationCode), travelClass: initialCabin, accrualRate: Math.round((applicableFare?.rate || 1) * 100), flightNumber: "", seat: "" };
+  };
+  const addViaStop = () => {
+    const nextStops = [...viaStops, ""];
+    const points = [origin, ...nextStops, destination];
+    setViaStops(nextStops);
+    setVia("");
+    setLegDetails(points.slice(0, -1).map((point, index) => legDetails[index] ? { ...legDetails[index], origin: point, destination: points[index + 1] } : makeDefaultLeg(point, points[index + 1])));
+  };
+  const removeViaStop = (stopIndex: number) => {
+    const nextStops = viaStops.filter((_, index) => index !== stopIndex);
+    const points = [origin, ...nextStops, destination];
+    setViaStops(nextStops);
+    setVia(nextStops.length === 0 ? "" : "");
+    setLegDetails(points.slice(0, -1).map((point, index) => {
+      const existing = legDetails[index];
+      return existing ? { ...existing, origin: point, destination: points[index + 1] } : makeDefaultLeg(point, points[index + 1]);
+    }));
+  };
+  const updateViaStop = (stopIndex: number, value: string) => {
+    const nextStops = viaStops.map((item, index) => index === stopIndex ? value : item);
+    const points = [origin, ...nextStops, destination];
+    setViaStops(nextStops);
+    setVia("");
+    setLegDetails(points.slice(0, -1).map((point, index) => {
+      const current = legDetails[index];
+      return current ? { ...current, origin: point, destination: points[index + 1] } : makeDefaultLeg(point, points[index + 1]);
+    }));
+  };
 
   const returnDateRef = useRef<HTMLInputElement>(null);
   const resultCardRef = useRef<HTMLDivElement>(null);
@@ -259,6 +321,13 @@ export default function FlightCalculator() {
         if (parsed.returnDate) setReturnDate(parsed.returnDate);
         if (parsed.origin) setOrigin(parsed.origin);
         if (parsed.via !== undefined) setVia(parsed.via);
+        if (Array.isArray(parsed.viaStops)) setViaStops(parsed.viaStops.filter((stop: unknown): stop is string => typeof stop === "string"));
+        if (Array.isArray(parsed.legDetails)) setLegDetails(parsed.legDetails as FlightLegDetail[]);
+        else if ((Array.isArray(parsed.viaStops) && parsed.viaStops.length > 0) || parsed.via) {
+          const savedStops = Array.isArray(parsed.viaStops) && parsed.viaStops.length > 0 ? parsed.viaStops : [parsed.via];
+          const points = [parsed.origin || "ITM", ...savedStops, parsed.destination || "ISG"];
+          setLegDetails(points.slice(0, -1).map((point: string, index: number) => createLegDetail(point, points[index + 1])));
+        }
         if (parsed.destination) setDestination(parsed.destination);
         if (parsed.fareKey) setFareKey(parsed.fareKey);
         if (parsed.boardingBonus !== undefined) setBoardingBonus(parsed.boardingBonus);
@@ -270,7 +339,11 @@ export default function FlightCalculator() {
         if (parsed.partnerOrigin) setPartnerOrigin(parsed.partnerOrigin);
         if (parsed.partnerDestination) setPartnerDestination(parsed.partnerDestination);
         if (parsed.intlBookingClass && ANA_INTL_BOOKING_CLASSES[parsed.intlBookingClass]) setIntlBookingClass(parsed.intlBookingClass);
+        if (parsed.intlTravelClass && CABIN_OPTIONS.some((item) => item.value === parsed.intlTravelClass)) setIntlTravelClass(parsed.intlTravelClass);
+        if (typeof parsed.intlAccrualRate === "number" && parsed.intlAccrualRate >= 0 && parsed.intlAccrualRate <= 200) setIntlAccrualRate(parsed.intlAccrualRate);
+        if (parsed.partnerTravelClass && CABIN_OPTIONS.some((item) => item.value === parsed.partnerTravelClass)) setPartnerTravelClass(parsed.partnerTravelClass);
         if (parsed.intlOperatingCarrier && STAR_ALLIANCE_CARRIERS.some((carrier) => carrier.code === parsed.intlOperatingCarrier)) setIntlOperatingCarrier(parsed.intlOperatingCarrier);
+        else setIntlOperatingCarrier(STAR_ALLIANCE_CARRIERS[0].code);
         if (typeof parsed.partnerAccrualRate === "number" && parsed.partnerAccrualRate >= 0 && parsed.partnerAccrualRate <= 200) setPartnerAccrualRate(parsed.partnerAccrualRate);
         if (typeof parsed.partnerAccrualConfirmed === "boolean") setPartnerAccrualConfirmed(parsed.partnerAccrualConfirmed);
         if (typeof parsed.partnerManualDistance === "number") setPartnerManualDistance(parsed.partnerManualDistance);
@@ -297,8 +370,8 @@ export default function FlightCalculator() {
       const currentState = {
         airline, flightNumber, aircraftType, registration, seat, aircraftImagePath, aircraftCustomImageId, aircraftCustomImageSrc,
         flightMode,
-        tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly,
-        intlOrigin, intlDestination, partnerOrigin, partnerDestination, intlBookingClass, intlOperatingCarrier, partnerAccrualRate, partnerAccrualConfirmed, intlManualDistance, partnerManualDistance, intlTicketPrice
+        tripType, date, returnDate, origin, via, viaStops, legDetails, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly,
+        intlOrigin, intlDestination, partnerOrigin, partnerDestination, intlBookingClass, intlTravelClass, intlAccrualRate, partnerTravelClass, intlOperatingCarrier, partnerAccrualRate, partnerAccrualConfirmed, intlManualDistance, partnerManualDistance, intlTicketPrice
       };
       try {
         localStorage.setItem("sfc_calculator_state", JSON.stringify(currentState));
@@ -307,7 +380,7 @@ export default function FlightCalculator() {
         console.warn("計算機の状態を端末に保存できませんでした", error);
       }
     }
-  }, [airline, flightNumber, aircraftType, registration, seat, aircraftImagePath, aircraftCustomImageId, aircraftCustomImageSrc, flightMode, tripType, date, returnDate, origin, via, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly, intlOrigin, intlDestination, partnerOrigin, partnerDestination, intlBookingClass, intlOperatingCarrier, partnerAccrualRate, partnerAccrualConfirmed, intlManualDistance, partnerManualDistance, intlTicketPrice, isLoaded]);
+  }, [airline, flightNumber, aircraftType, registration, seat, aircraftImagePath, aircraftCustomImageId, aircraftCustomImageSrc, flightMode, tripType, date, returnDate, origin, via, viaStops, legDetails, destination, fareKey, boardingBonus, ticketPrice, isFirstClassOnly, intlOrigin, intlDestination, partnerOrigin, partnerDestination, intlBookingClass, intlTravelClass, intlAccrualRate, partnerTravelClass, intlOperatingCarrier, partnerAccrualRate, partnerAccrualConfirmed, intlManualDistance, partnerManualDistance, intlTicketPrice, isLoaded]);
 
   const handleAircraftImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -393,10 +466,12 @@ export default function FlightCalculator() {
   // 国内線 useEffects
   useEffect(() => {
     if (flightMode === "domestic") {
-      const calcDist = via ? getDomDistance(origin, via) + getDomDistance(via, destination) : getDomDistance(origin, destination);
+      const stops = viaStops.length > 0 ? viaStops.filter(Boolean) : (via ? [via] : []);
+      const points = [origin, ...stops, destination];
+      const calcDist = points.slice(0, -1).reduce((sum, point, index) => sum + getDomDistance(point, points[index + 1]), 0);
       setManualDistance(calcDist);
     }
-  }, [origin, via, destination, flightMode]);
+  }, [origin, via, viaStops, destination, flightMode]);
 
   const availableFareKeys = useMemo(
     () => Object.keys(domFareTypes).filter((key) => domFareTypes[key].classType === (isFirstClassOnly ? "first" : "economy")),
@@ -429,16 +504,16 @@ export default function FlightCalculator() {
   }, [partnerOrigin, partnerDestination, flightMode]);
 
   // --- 計算ロジック ---
-    const calculateIntlPP = () => {
+  const calculateIntlPP = () => {
     const fare = ANA_INTL_BOOKING_CLASSES[intlBookingClass];
     const routeDistance = getIntlDistance(intlOrigin, intlDestination);
     if (!fare || !intlRegion || routeDistance <= 0 || intlManualDistance <= 0) return 0;
     const routeMultiplier = getIntlRouteMultiplier(intlOrigin, intlDestination);
-    return Math.floor(intlManualDistance * fare.rate * routeMultiplier) + fare.boardingPoints;
+    return Math.floor(intlManualDistance * selectedIntlCabinRate * routeMultiplier) + fare.boardingPoints;
   };
 
   const calculatePartnerIntlPP = () => {
-    if (!partnerAccrualConfirmed || partnerAccrualRate <= 0 || partnerManualDistance <= 0) return 0;
+    if (partnerAccrualRate <= 0 || partnerManualDistance <= 0) return 0;
     const boardingPoints = partnerAccrualRate >= 100 ? 400 : 0;
     return Math.floor(partnerManualDistance * (partnerAccrualRate / 100)) + boardingPoints;
   };
@@ -447,8 +522,7 @@ export default function FlightCalculator() {
   const activeOperatingCarrier = isPartnerIntl ? intlOperatingCarrier : "NH";
   const intlRegion = getIntlRegion(intlOrigin, intlDestination);
   const intlClassDetails = ANA_INTL_BOOKING_CLASSES[intlBookingClass] || ANA_INTL_BOOKING_CLASSES.Y;
-  const partnerClassDetails = PARTNER_ACCRUAL_CLASSES.find((item) => item.code === intlBookingClass);
-  const currentTravelClass: TravelClass = flightMode === "domestic" ? getAnaDomesticClass(isFirstClassOnly, date) : isPartnerIntl ? (partnerClassDetails?.travelClass || "economy") : intlClassDetails.travelClass;
+  const currentTravelClass: TravelClass = flightMode === "domestic" ? getAnaDomesticClass(isFirstClassOnly, date) : isPartnerIntl ? partnerTravelClass : intlTravelClass;
   const aircraftImageOptions = getAircraftImageOptions(aircraftType);
   const starAllianceBackgroundOptions = getStarAllianceBackgroundOptions(aircraftType);
   const selectedHonuImage = getFlyingHonuImagePath(registration);
@@ -518,14 +592,26 @@ export default function FlightCalculator() {
       ? selectedFare
       : fareTypes[defaultKey];
     if (!fare || manualDistance <= 0) return 0;
-    const dist1 = getDomDistance(origin, via);
-    const dist2 = getDomDistance(via, destination);
-    if (via && dist1 > 0 && dist2 > 0 && manualDistance === dist1 + dist2) {
-      return Math.floor(dist1 * fare.rate * 2) + fare.bonus + Math.floor(dist2 * fare.rate * 2) + fare.bonus;
+    const stops = getDomesticStops();
+    const routePoints = [origin, ...stops, destination];
+    if (stops.length > 0) {
+      return routePoints.slice(0, -1).reduce((sum, point, index) => {
+        const segmentDistance = getDomDistance(point, routePoints[index + 1]);
+        const legDetail = legDetails[index];
+        const legCabin = legDetail?.travelClass || (isFirstClassOnly ? "first" : "economy");
+        const defaultLegFareKey = useNewFare ? (legCabin === "first" ? "p_c" : "e_i") : (legCabin === "first" ? "old_fare2" : "old_fare7");
+        const legFare = fareTypes[fareKey] && fareTypes[fareKey].classType === (legCabin === "first" ? "first" : "economy")
+          ? fareTypes[fareKey]
+          : fareTypes[defaultLegFareKey];
+        const legRate = legDetail?.accrualRate !== undefined ? Math.max(0, legDetail.accrualRate) / 100 : legFare.rate;
+        const legBonus = legFare.bonus;
+        return sum + Math.floor(segmentDistance * legRate * 2) + legBonus;
+      }, 0);
     }
-    return Math.floor(manualDistance * fare.rate * 2) + fare.bonus * (via ? 2 : 1);
+    return Math.floor(manualDistance * fare.rate * 2) + fare.bonus;
   };
 
+  const selectedIntlCabinRate = intlAccrualRate / 100;
   const basePP = flightMode === "domestic" ? calculateDomesticPP(date) : isPartnerIntl ? calculatePartnerIntlPP() : calculateIntlPP();
   const totalPP = tripType === "roundtrip" ? basePP * 2 : basePP;
   const currentPrice = flightMode === "domestic" ? ticketPrice : intlTicketPrice;
@@ -544,7 +630,8 @@ export default function FlightCalculator() {
     if (flightMode === "domestic") {
       originName = domAirports.find(a => a.code === origin)?.name || origin;
       destName = domAirports.find(a => a.code === destination)?.name || destination;
-      viaName = via ? domAirports.find(a => a.code === via)?.name || via : "";
+      const stopCodes = getDomesticStops();
+      viaName = stopCodes.map((code) => domAirports.find(a => a.code === code)?.name || code).join(" → ");
       outboundPrice = tripType === "roundtrip" ? Math.ceil(ticketPrice / 2) : ticketPrice;
       returnPrice = tripType === "roundtrip" ? Math.floor(ticketPrice / 2) : 0;
       } else if (flightMode === "international") {
@@ -561,6 +648,26 @@ export default function FlightCalculator() {
       returnPrice = tripType === "roundtrip" ? Math.floor(intlTicketPrice / 2) : 0;
     }
 
+    const domesticRoutePoints = getRoutePoints(origin, destination, getDomesticStops());
+    const domesticLegs = flightMode === "domestic"
+      ? domesticRoutePoints.slice(0, -1).map((point, index) => {
+          const legDetail = legDetails[index] || createLegDetail(point, domesticRoutePoints[index + 1]);
+          const cabin = legDetail.travelClass || currentTravelClass;
+          const isLegFirstClass = cabin === "first";
+          const selectedFare = domFareTypes[fareKey];
+          const defaultFareKey = date >= "2026-05-19" ? (isLegFirstClass ? "p_c" : "e_i") : (isLegFirstClass ? "old_fare2" : "old_fare7");
+          const validFare = selectedFare && selectedFare.classType === (isLegFirstClass ? "first" : "economy") ? selectedFare : domFareTypes[defaultFareKey];
+          return {
+            ...legDetail,
+            origin: point,
+            destination: domesticRoutePoints[index + 1],
+            travelClass: cabin,
+            bookingClass: legDetail.bookingClass || undefined,
+            accrualRate: typeof legDetail.accrualRate === "number" ? legDetail.accrualRate : Math.round((validFare?.rate || 1) * 100),
+            operatingCarrier: legDetail.operatingCarrier || "NH",
+          };
+        })
+      : undefined;
     const newLog = {
       id: crypto.randomUUID(),
       airline,
@@ -572,19 +679,20 @@ export default function FlightCalculator() {
       pp: flightMode === "domestic" ? calculateDomesticPP(date) : isPartnerIntl ? calculatePartnerIntlPP() : calculateIntlPP(),
       lsp: 0,
       price: outboundPrice,
-      flightNumber,
+      flightNumber: domesticLegs?.[0]?.flightNumber || flightNumber,
       flightMode: (flightMode === "domestic" ? "domestic" : "international") as "domestic" | "international",
       aircraftType,
       aircraftImagePath: aircraftCustomImageId ? undefined : (aircraftImagePath || (isPartnerIntl ? getPreferredStarAllianceImagePath(aircraftType) : getPreferredAircraftImagePath(aircraftType, registration))),
       aircraftCustomImageId: aircraftCustomImageId || undefined,
-      registration,
-      seat,
+      registration: domesticLegs?.[0]?.registration || registration,
+      seat: domesticLegs?.[0]?.seat || seat,
       bookingClass: flightMode !== "domestic" ? intlBookingClass : undefined,
       operatingCarrier: isPartnerIntl ? activeOperatingCarrier : undefined,
       accrualRate: isPartnerIntl ? partnerAccrualRate : undefined,
       boardingPoints: isPartnerIntl ? (partnerAccrualConfirmed && partnerAccrualRate >= 100 ? 400 : 0) : undefined,
       distanceSource: isPartnerIntl && partnerManualDistance > 0 ? "manual-official" as const : undefined,
-      travelClass: currentTravelClass,
+      travelClass: domesticLegs?.[0]?.travelClass || currentTravelClass,
+      legs: domesticLegs,
     };
 
     const recordsToSave = [newLog];
@@ -600,19 +708,20 @@ export default function FlightCalculator() {
         pp: flightMode === "domestic" ? calculateDomesticPP(returnDate) : isPartnerIntl ? calculatePartnerIntlPP() : calculateIntlPP(),
         lsp: 0,
         price: returnPrice,
-        flightNumber,
+        flightNumber: domesticLegs?.[0]?.flightNumber || flightNumber,
         flightMode: (flightMode === "domestic" ? "domestic" : "international") as "domestic" | "international",
         aircraftType,
         aircraftImagePath: aircraftCustomImageId ? undefined : (aircraftImagePath || (isPartnerIntl ? getPreferredStarAllianceImagePath(aircraftType) : getPreferredAircraftImagePath(aircraftType, registration))),
         aircraftCustomImageId: aircraftCustomImageId || undefined,
-        registration,
-        seat,
+        registration: domesticLegs?.[0]?.registration || registration,
+        seat: domesticLegs?.[0]?.seat || seat,
         bookingClass: flightMode !== "domestic" ? intlBookingClass : undefined,
         operatingCarrier: isPartnerIntl ? activeOperatingCarrier : undefined,
         accrualRate: isPartnerIntl ? partnerAccrualRate : undefined,
         boardingPoints: isPartnerIntl ? (partnerAccrualConfirmed && partnerAccrualRate >= 100 ? 400 : 0) : undefined,
         distanceSource: isPartnerIntl && partnerManualDistance > 0 ? "manual-official" as const : undefined,
         travelClass: flightMode === "domestic" ? getAnaDomesticClass(isFirstClassOnly, returnDate) : currentTravelClass,
+        legs: domesticLegs?.map((leg) => ({ ...leg, origin: leg.destination, destination: leg.origin })).reverse(),
       };
       recordsToSave.push(returnLog);
     }
@@ -651,57 +760,22 @@ export default function FlightCalculator() {
     }
   };
 
-  if (!isLoaded) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><p className="text-slate-400 font-bold text-sm">読み込み中...</p></div>;
+  if (!isLoaded) return <div className="min-h-screen bg-[#070F1E] flex items-center justify-center text-white"><p className="text-slate-400 font-bold text-sm">読み込み中...</p></div>;
 
   return (
-    <div className="min-h-screen min-w-0 bg-[#F4F7FB] pb-32 font-sans text-slate-900">
-      {/* 透過・白ヘッダー (カンプ: フライト登録 / ✕) */}
+    <div className="min-h-screen min-w-0 bg-[#F4F7FB] pb-12 font-sans text-slate-900">
+      {/* フライト登録ヘッダー */}
       <header className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 py-3.5 flex items-center justify-between shadow-xs">
         <div className="w-8" />
         <h1 className="text-base font-black tracking-tight text-slate-900">フライト登録</h1>
-        <button
-          type="button"
-          onClick={() => router.push("/logs")}
-          aria-label="閉じる"
-          className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-        >
-          ✕
-        </button>
+        <div className="w-8" aria-hidden="true" />
       </header>
 
       <div className="max-w-md sm:max-w-xl mx-auto px-4 pt-4 space-y-4">
 
         {/* ================= 1. DUAL PILL SEGMENTED CONTROL ================= */}
         <div className="space-y-2">
-          {/* 1段目: 片道 / 往復 */}
-          <div role="group" aria-label="旅程タイプ" className="grid grid-cols-2 p-1 bg-slate-200/70 rounded-full">
-            <button
-              type="button"
-              aria-pressed={tripType === "oneway"}
-              onClick={() => setTripType("oneway")}
-              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
-                tripType === "oneway"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              片道
-            </button>
-            <button
-              type="button"
-              aria-pressed={tripType === "roundtrip"}
-              onClick={() => setTripType("roundtrip")}
-              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
-                tripType === "roundtrip"
-                  ? "bg-white text-slate-900 shadow-xs"
-                  : "text-slate-500 hover:text-slate-800"
-              }`}
-            >
-              往復
-            </button>
-          </div>
-
-          {/* 2段目: 国内線 / 国際線 / 提携航空会社 */}
+          {/* 1段目: 国内線 / 国際線 / 提携航空会社 */}
           <div role="group" aria-label="運航区分" className="grid grid-cols-3 p-1 bg-slate-200/70 rounded-full">
             <button
               type="button"
@@ -731,13 +805,37 @@ export default function FlightCalculator() {
               type="button"
               aria-pressed={flightMode === "star-alliance"}
               onClick={() => setFlightMode("star-alliance")}
+              className={`py-2 text-[11px] sm:text-xs font-black rounded-full transition-all duration-150 ${flightMode === "star-alliance" ? "bg-white text-[#003184] shadow-xs" : "text-slate-500 hover:text-slate-800"}`}
+            >
+              提携航空会社
+            </button>
+          </div>
+
+          {/* 2段目: 片道 / 往復 */}
+          <div role="group" aria-label="旅程タイプ" className="grid grid-cols-2 p-1 bg-slate-200/70 rounded-full">
+            <button
+              type="button"
+              aria-pressed={tripType === "oneway"}
+              onClick={() => setTripType("oneway")}
               className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
-                flightMode === "star-alliance"
-                  ? "bg-white text-[#003184] shadow-xs"
+                tripType === "oneway"
+                  ? "bg-white text-slate-900 shadow-xs"
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
-              提携航空会社
+              片道
+            </button>
+            <button
+              type="button"
+              aria-pressed={tripType === "roundtrip"}
+              onClick={() => setTripType("roundtrip")}
+              className={`py-2 text-xs font-black rounded-full transition-all duration-150 ${
+                tripType === "roundtrip"
+                  ? "bg-white text-slate-900 shadow-xs"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              往復
             </button>
           </div>
         </div>
@@ -795,7 +893,10 @@ export default function FlightCalculator() {
               <SearchableAirportSelect
                 label=""
                 value={origin}
-                onChange={setOrigin}
+                onChange={(value) => {
+                  setOrigin(value);
+                  setLegDetails((current) => current.map((leg, index) => index === 0 ? { ...leg, origin: value } : leg));
+                }}
               />
             ) : flightMode === "international" ? (
               <SearchableAirportSelect
@@ -813,6 +914,21 @@ export default function FlightCalculator() {
               />
             )}
           </div>
+
+          {flightMode === "domestic" && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-400">経由地</span>
+              {viaStops.filter(Boolean).map((stop, index) => (
+                <span key={`${stop}-${index}`} className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-[#003184]">
+                  {stop}
+                  <button type="button" onClick={() => removeViaStop(index)} aria-label={`経由地 ${stop} を削除`} className="ml-0.5 text-blue-500 hover:text-rose-600">×</button>
+                </span>
+              ))}
+              <button type="button" onClick={addViaStop} className="inline-flex items-center gap-1 rounded-full border border-dashed border-blue-300 px-3 py-1.5 text-[11px] font-bold text-[#003184] hover:bg-blue-50">
+                <span className="text-sm leading-none">＋</span> 経由地を追加
+              </button>
+            </div>
+          )}
 
           {/* ディバイダー */}
           <div className="border-t border-slate-100 my-3 relative" />
@@ -838,7 +954,10 @@ export default function FlightCalculator() {
               <SearchableAirportSelect
                 label=""
                 value={destination}
-                onChange={setDestination}
+                onChange={(value) => {
+                  setDestination(value);
+                  setLegDetails((current) => current.map((leg, index) => index === getDomesticStops().length - 1 ? { ...leg, destination: value } : leg));
+                }}
               />
             ) : flightMode === "international" ? (
               <SearchableAirportSelect
@@ -866,7 +985,11 @@ export default function FlightCalculator() {
             {flightMode === "star-alliance" ? (
               <select
                 value={intlOperatingCarrier}
-                onChange={(e) => setIntlOperatingCarrier(e.target.value)}
+                onChange={(e) => {
+                  const code = e.target.value;
+                  setIntlOperatingCarrier(code);
+                  setLegDetails((current) => current.map((leg) => ({ ...leg, operatingCarrier: code })));
+                }}
                 className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[200px]"
               >
                 {STAR_ALLIANCE_CARRIERS.map((c) => (
@@ -882,59 +1005,62 @@ export default function FlightCalculator() {
             )}
           </div>
 
-          {/* 運賃・予約クラス */}
+          {/* 客室クラス・運賃 */}
           <div className="flex items-center justify-between gap-3 py-1 border-t border-slate-100">
-            <span className="text-xs font-bold text-slate-600 shrink-0">
-              {flightMode === "domestic" ? "運賃種別" : "予約クラス"}
-            </span>
-            {flightMode === "domestic" ? (
-              <select
-                value={fareKey}
-                onChange={(e) => setFareKey(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
-              >
-                {Object.keys(domFareTypes).map((k) => (
-                  <option key={k} value={k}>
-                    {domFareTypes[k].label} ({Math.round(domFareTypes[k].rate * 100)}%)
-                  </option>
-                ))}
-              </select>
-            ) : flightMode === "international" ? (
-              <select
-                value={intlBookingClass}
-                onChange={(e) => setIntlBookingClass(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
-              >
-                {Object.keys(ANA_INTL_BOOKING_CLASSES).map((k) => (
-                  <option key={k} value={k}>
-                    {ANA_INTL_BOOKING_CLASSES[k].label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <select
-                value={intlBookingClass}
-                onChange={(e) => setIntlBookingClass(e.target.value)}
-                className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
-              >
-                {PARTNER_ACCRUAL_CLASSES.map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            )}
+            <span className="text-xs font-bold text-slate-600 shrink-0">客室クラス</span>
+            <select
+              value={flightMode === "domestic" ? (isFirstClassOnly ? "first" : "economy") : flightMode === "international" ? intlTravelClass : partnerTravelClass}
+              onChange={(e) => {
+                const cabin = e.target.value as TravelClass;
+                if (flightMode === "domestic") setIsFirstClassOnly(cabin === "first");
+                else if (flightMode === "international") {
+                  setIntlTravelClass(cabin);
+                  const classCode = Object.keys(ANA_INTL_BOOKING_CLASSES).find((code) => ANA_INTL_BOOKING_CLASSES[code].travelClass === cabin);
+                  if (classCode) setIntlBookingClass(classCode);
+                } else {
+                  setPartnerTravelClass(cabin);
+                  const classCode = PARTNER_ACCRUAL_CLASSES.find((item) => item.travelClass === cabin)?.code;
+                  if (classCode) setIntlBookingClass(classCode);
+                }
+              }}
+              className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 outline-none max-w-[220px]"
+            >
+              {CABIN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
           </div>
+
+          {flightMode === "domestic" && (
+            <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-3">
+              <span className="text-xs font-bold text-slate-600">運賃種別</span>
+              <select value={fareKey} onChange={(e) => setFareKey(e.target.value)} className="max-w-[220px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
+                {Object.keys(domFareTypes).map((key) => <option key={key} value={key}>{domFareTypes[key].label} ({Math.round(domFareTypes[key].rate * 100)}%)</option>)}
+              </select>
+            </div>
+          )}
+          {flightMode !== "domestic" && (
+            <div className="space-y-3 border-t border-slate-100 pt-3">
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="booking-class" className="text-xs font-bold text-slate-600">予約クラス</label>
+                <select id="booking-class" value={intlBookingClass} onChange={(e) => setIntlBookingClass(e.target.value)} className="max-w-[220px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-800">
+                  {(flightMode === "international" ? Object.keys(ANA_INTL_BOOKING_CLASSES).map((code) => ({ code, label: ANA_INTL_BOOKING_CLASSES[code].label })) : PARTNER_ACCRUAL_CLASSES.map((item) => ({ code: item.code, label: item.label }))).map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+                </select>
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <label htmlFor="accrual-rate" className="text-xs font-bold text-slate-600">積算率（%）</label>
+                <input id="accrual-rate" type="number" min="0" max="200" step="1" value={flightMode === "international" ? intlAccrualRate : partnerAccrualRate} onChange={(e) => {
+                  const rate = Math.max(0, Math.min(200, Number(e.target.value) || 0));
+                  if (flightMode === "international") setIntlAccrualRate(rate);
+                  else { setPartnerAccrualRate(rate); setPartnerAccrualConfirmed(true); }
+                }} className="w-24 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-right text-xs font-bold text-slate-800" />
+              </div>
+            </div>
+          )}
 
           {/* 積算率 */}
           <div className="flex items-center justify-between gap-3 py-1 border-t border-slate-100">
             <span className="text-xs font-bold text-slate-600 shrink-0">積算率</span>
             <span className="text-xs font-black text-slate-900 bg-slate-100 px-3 py-1.5 rounded-xl">
-              {flightMode === "domestic"
-                ? `${Math.round((domFareTypes[fareKey]?.rate || 1) * 100)}%`
-                : flightMode === "international"
-                ? `${Math.round((intlClassDetails?.rate || 1) * 100)}%`
-                : `${partnerAccrualRate}%`}
+              {flightMode === "domestic" ? `${Math.round((domFareTypes[fareKey]?.rate || 1) * 100)}%` : flightMode === "international" ? `${intlAccrualRate}%` : `${partnerAccrualRate}%`}
             </span>
           </div>
 
@@ -963,10 +1089,95 @@ export default function FlightCalculator() {
           </summary>
           <div className="mt-4 space-y-3 pt-3 border-t border-slate-100">
             {flightMode === "domestic" && (
-              <div>
-                <label className="block text-[11px] font-bold text-slate-500 mb-1">経由地 (任意)</label>
-                <SearchableAirportSelect label="" value={via} onChange={setVia} allowEmpty />
-              </div>
+              <section className="space-y-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-black text-slate-800">経由地・区間ごとの便情報</p>
+                    <p className="mt-0.5 text-[10px] text-slate-500">乗り継ぎで便・座席・客室クラスが変わる場合は区間ごとに登録します。</p>
+                  </div>
+                  <button type="button" onClick={addViaStop} className="shrink-0 rounded-xl bg-[#2878F0] px-3 py-2 text-xs font-black text-white shadow-sm hover:bg-[#1E6AD8]">＋ 経由地</button>
+                </div>
+                {viaStops.length === 0 && !via && <p className="text-[11px] text-slate-500">経由地なし（直行便）</p>}
+                {(viaStops.length > 0 ? viaStops : (via ? [via] : [])).map((stop, stopIndex) => (
+                  <div key={`stop-${stopIndex}`} className="space-y-3 rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-black text-[#003184]">経由地 {stopIndex + 1}</span>
+                      <button type="button" onClick={() => removeViaStop(stopIndex)} className="text-[10px] font-bold text-rose-600 hover:text-rose-800">削除</button>
+                    </div>
+                    <SearchableAirportSelect label="到着空港" value={stop} onChange={(value) => updateViaStop(stopIndex, value)} allowEmpty />
+                    <p className="text-[10px] text-slate-400">区間：{stopIndex === 0 ? origin : viaStops[stopIndex - 1] || "前の経由地を選択"} → {stop || "経由空港を選択"}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">この区間の便名</label>
+                        <input value={legDetails[stopIndex]?.flightNumber || ""} onChange={(event) => updateLeg(stopIndex, { flightNumber: event.target.value })} placeholder="NH841" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">座席</label>
+                        <input value={legDetails[stopIndex]?.seat || ""} onChange={(event) => updateLeg(stopIndex, { seat: event.target.value })} placeholder="12A" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">客室クラス</label>
+                        <select value={legDetails[stopIndex]?.travelClass || "economy"} onChange={(event) => updateLeg(stopIndex, { travelClass: event.target.value as TravelClass })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-bold">
+                          {CABIN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">予約クラス</label>
+                        <input value={legDetails[stopIndex]?.bookingClass || "Y"} onChange={(event) => updateLeg(stopIndex, { bookingClass: event.target.value.toUpperCase() })} maxLength={2} placeholder="Y" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold uppercase" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">積算率（%）</label>
+                        <input type="number" min="0" max="200" value={legDetails[stopIndex]?.accrualRate ?? 100} onChange={(event) => updateLeg(stopIndex, { accrualRate: Math.max(0, Math.min(200, Number(event.target.value) || 0)) })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">運航会社コード</label>
+                        <input value={legDetails[stopIndex]?.operatingCarrier || "NH"} onChange={(event) => updateLeg(stopIndex, { operatingCarrier: event.target.value.toUpperCase() })} placeholder="NH" maxLength={3} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold uppercase" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {getDomesticStops().length > 0 && (
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="mb-2 text-[11px] font-black text-slate-700">最終区間：{getDomesticStops().at(-1)} → {destination}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">便名</label>
+                        <input value={legDetails[getDomesticStops().length]?.flightNumber || ""} onChange={(event) => updateLeg(getDomesticStops().length, { flightNumber: event.target.value })} placeholder="NHxxx" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">座席</label>
+                        <input value={legDetails[getDomesticStops().length]?.seat || ""} onChange={(event) => updateLeg(getDomesticStops().length, { seat: event.target.value })} placeholder="12A" className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold" />
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">客室クラス</label>
+                        <select value={legDetails[getDomesticStops().length]?.travelClass || "economy"} onChange={(event) => updateLeg(getDomesticStops().length, { travelClass: event.target.value as TravelClass })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-2 text-xs font-bold">
+                          {CABIN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">予約クラス</label>
+                        <input value={legDetails[getDomesticStops().length]?.bookingClass || "Y"} onChange={(event) => updateLeg(getDomesticStops().length, { bookingClass: event.target.value.toUpperCase() })} maxLength={2} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold uppercase" />
+                      </div>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">積算率（%）</label>
+                        <input type="number" min="0" max="200" value={legDetails[getDomesticStops().length]?.accrualRate ?? 100} onChange={(event) => updateLeg(getDomesticStops().length, { accrualRate: Math.max(0, Math.min(200, Number(event.target.value) || 0)) })} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold" />
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">運航会社コード</label>
+                        <input value={legDetails[getDomesticStops().length]?.operatingCarrier || "NH"} onChange={(event) => updateLeg(getDomesticStops().length, { operatingCarrier: event.target.value.toUpperCase() })} maxLength={3} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2 text-xs font-bold uppercase" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </section>
             )}
             <div className="grid grid-cols-2 gap-2">
               <div>
@@ -989,6 +1200,23 @@ export default function FlightCalculator() {
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold"
                 />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">客室クラス</label>
+                <select value={flightMode === "domestic" ? (isFirstClassOnly ? "first" : "economy") : currentTravelClass} onChange={(event) => {
+                  const cabin = event.target.value as TravelClass;
+                  if (flightMode === "domestic") setIsFirstClassOnly(cabin === "first");
+                  else if (flightMode === "international") setIntlTravelClass(cabin);
+                  else setPartnerTravelClass(cabin);
+                }} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold">
+                  {CABIN_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              </div>
+              {flightMode !== "domestic" && <div>
+                <label className="block text-[11px] font-bold text-slate-500 mb-1">予約クラス</label>
+                <input value={intlBookingClass} onChange={(event) => setIntlBookingClass(event.target.value.toUpperCase())} maxLength={2} placeholder="Y" className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold uppercase" />
+              </div>}
             </div>
             <div>
               <label className="block text-[11px] font-bold text-slate-500 mb-1">機材タイプ</label>
@@ -1060,7 +1288,7 @@ export default function FlightCalculator() {
           type="button"
           disabled={isSavingFlight}
           onClick={saveFlightLog}
-          className="w-full bg-[#2878F0] hover:bg-[#1E6AD8] text-white font-black py-4 px-4 rounded-2xl text-base shadow-[0_8px_24px_rgba(40,120,240,0.35)] active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+          className="w-full bg-[#2878F0] hover:bg-[#1E6AD8] text-white font-black py-4 px-4 rounded-2xl text-base shadow-[0_8px_24px_rgba(40,120,240,0.35)] active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:cursor-wait disabled:opacity-70"
         >
           {isSavingFlight ? "保存中..." : "この内容で登録"}
         </button>

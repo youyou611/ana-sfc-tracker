@@ -3,9 +3,9 @@ import type { MetadataRoute } from 'next'
 // PWAマニフェスト：Android/Chromeで「アプリをインストール」できるようにする
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'SFC修行トラッカー',
-    short_name: 'SFCトラッカー',
-    description: 'ANA SFC修行のプレミアムポイントとフライト履歴を管理するパーソナルツール',
+    name: 'SFC Tracker',
+    short_name: 'SFC Tracker',
+    description: '青組マイラーのためのプレミアムポイント計算・フライト記録ツール。ANAのSFC修行やPP管理に対応した非公式ツールです。',
     start_url: '/',
     scope: '/',
     display: 'standalone',

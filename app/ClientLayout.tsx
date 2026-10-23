@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 
-// メニュー定義（カンプ準拠: ホーム / フライト / マップ / 計算機 / 設定）
+// メインメニュー（ホーム / フライト / マップ / 統計 / 計算機 / 設定）
 const NAV_ITEMS = [
   {
     href: "/",
@@ -26,6 +26,12 @@ const NAV_ITEMS = [
     iconPath: "M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7",
   },
   {
+    href: "/stats",
+    label: "統計・分析",
+    shortLabel: "統計",
+    iconPath: "M3 3v18h18M8 15l4-4 4 3 5-7M8 9h.01M12 5h.01",
+  },
+  {
     href: "/calc",
     label: "PP計算機",
     shortLabel: "計算機",
@@ -39,7 +45,7 @@ const NAV_ITEMS = [
   },
 ];
 
-// モバイルボトムナビ用（カンプ指定の5項目固定: ホーム / フライト / マップ / 計算機 / 設定）
+// ガイドはホームと設定からアクセス。メインナビは6項目。
 const MOBILE_NAV_ITEMS = NAV_ITEMS;
 
 export default function ClientLayout({
@@ -60,7 +66,7 @@ export default function ClientLayout({
   };
 
   return (
-    <div className="sfc-app-shell bg-[#0a1428] min-h-screen font-sans flex transition-colors duration-300">
+    <div className="sfc-app-shell bg-[#070F1E] min-h-screen font-sans flex transition-colors duration-300">
       
       {/* サイドバー本体（PCのみ） */}
       <aside
@@ -110,15 +116,15 @@ export default function ClientLayout({
       </aside>
 
       {/* メインコンテンツエリア: 各ページがフルブリードで描画できるようFOUC防止背景とシームレスなトランジション */}
-      <main id="main-content" className={`flex-1 w-full min-w-0 relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ml-0 ${isOpen ? "md:ml-72" : "md:ml-20"} bg-[#f4f7fb]`}>
+        <main id="main-content" className={`flex-1 w-full min-w-0 relative transition-[margin] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] ml-0 ${isOpen ? "md:ml-72" : "md:ml-20"} bg-[#070F1E]`}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pathname}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="min-w-0"
+            transition={{ duration: 0.12 }}
+            className="min-w-0 min-h-screen bg-[#070F1E]"
             style={{ touchAction: "pan-y" }}
           >
             {children}
@@ -132,7 +138,7 @@ export default function ClientLayout({
         style={{ bottom: "calc(0.6rem + env(safe-area-inset-bottom, 0px))" }}
         aria-label="メインメニュー"
       >
-        <div className="pointer-events-auto w-full max-w-md bg-white/92 backdrop-blur-2xl border border-slate-200/80 shadow-[0_12px_40px_rgba(10,20,40,0.18)] rounded-[1.6rem] p-1.5 flex items-center justify-between gap-1">
+        <div className="pointer-events-auto w-full max-w-md bg-[#0B1D33]/95 backdrop-blur-2xl border border-white/15 shadow-[0_12px_40px_rgba(0,0,0,0.35)] rounded-[1.6rem] p-1.5 flex items-center justify-between gap-1">
           {MOBILE_NAV_ITEMS.map(item => {
             const active = isActive(item.href);
             return (
@@ -140,21 +146,21 @@ export default function ClientLayout({
                 <Link
                   href={item.href}
                   className={`relative flex min-h-[46px] flex-col items-center justify-center py-1.5 px-0.5 rounded-2xl transition-all duration-200 ${
-                    active ? "text-[#003184]" : "text-slate-400 hover:text-slate-600 active:scale-95"
+                    active ? "text-white" : "text-slate-400 hover:text-slate-200 active:scale-95"
                   }`}
                   aria-current={active ? "page" : undefined}
                 >
                   {active && (
                     <motion.div
                       layoutId="ana-active-tab-indicator"
-                      className="absolute inset-0 rounded-2xl bg-blue-50/80 border border-blue-200/50"
+                      className="absolute inset-0 rounded-2xl bg-[#2878F0]/25 border border-[#78B7FF]/30"
                       transition={{ type: "spring", stiffness: 450, damping: 35 }}
                     />
                   )}
                   <span className="relative z-10 flex items-center justify-center">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className={`h-[1.25rem] w-[1.25rem] transition-transform duration-200 ${active ? "scale-105 stroke-[#003184]" : ""}`}
+                      className={`h-[1.25rem] w-[1.25rem] transition-transform duration-200 ${active ? "scale-105 stroke-[#8AB4FF]" : ""}`}
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -162,7 +168,7 @@ export default function ClientLayout({
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={active ? 2.3 : 1.8} d={item.iconPath} />
                     </svg>
                   </span>
-                  <span className={`relative z-10 mt-0.5 text-[10px] tracking-tight leading-none whitespace-nowrap ${active ? "font-bold text-[#003184]" : "font-medium text-slate-400"}`}>
+                  <span className={`relative z-10 mt-0.5 text-[10px] tracking-tight leading-none whitespace-nowrap ${active ? "font-bold text-white" : "font-medium text-slate-400"}`}>
                     {item.shortLabel}
                   </span>
                 </Link>

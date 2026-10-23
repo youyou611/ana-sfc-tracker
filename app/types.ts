@@ -1,5 +1,18 @@
 export type Airline = 'ANA';
 
+export interface FlightLegDetail {
+  origin: string;
+  destination: string;
+  flightNumber?: string;
+  operatingCarrier?: string;
+  seat?: string;
+  travelClass?: import("./lib/travelClass").TravelClass;
+  bookingClass?: string;
+  accrualRate?: number;
+  aircraftType?: string;
+  registration?: string;
+}
+
 export interface FlightLogEx {
   id: string;
   airline: Airline;
@@ -10,6 +23,8 @@ export interface FlightLogEx {
   origin: string;
   destination: string;
   via: string;
+  /** Per-leg details for connections. Optional to preserve older saved records. */
+  legs?: FlightLegDetail[];
   
   // Points
   pp: number; // ANA Premium Points

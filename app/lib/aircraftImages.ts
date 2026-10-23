@@ -39,7 +39,7 @@ function modelKey(aircraftType?: string): string {
 }
 
 const aircraftAsset: Record<string, { ana?: string; star?: string }> = {
-  A380: { ana: "ana-A380①.jpg" },
+  A380: { ana: "ana-A380.jpg" },
   A350: { star: "スタアラ-A350.jpg" },
   B787: { ana: "ana-B787.jpg", star: "スタアラ-B787.jpg" },
   B777: { ana: "ana-B777.jpg", star: "スタアラ-B777.jpg" },
@@ -78,7 +78,7 @@ export function getAircraftImageOptions(aircraftType?: string): AircraftImageOpt
   const asset = aircraftAsset[model] || aircraftAsset.B787;
   const options: AircraftImageOption[] = [];
   if (model === "A380") {
-    options.push({ path: "/aircraft/ana/ana-A380%E2%91%A0.jpg", label: "フライングホヌ・青 (JA381A)", alliance: "ANA" });
+    options.push({ path: "/aircraft/ana/ana-A380.jpg", label: "フライングホヌ・青 (JA381A)", alliance: "ANA" });
     options.push({ path: "/aircraft/ana/ana-A380%E2%91%A1.jpg", label: "フライングホヌ・緑 (JA382A)", alliance: "ANA" });
     options.push({ path: "/aircraft/ana/ana-A380%E2%91%A2.jpg", label: "フライングホヌ・オレンジ (JA383A)", alliance: "ANA" });
   }
@@ -89,7 +89,7 @@ export function getAircraftImageOptions(aircraftType?: string): AircraftImageOpt
 
 export function getFlyingHonuImagePath(registration?: string): string | null {
   const code = (registration || "").toUpperCase().replace(/\s/g, "");
-  if (code === "JA381A") return "/aircraft/ana/ana-A380%E2%91%A0.jpg";
+  if (code === "JA381A") return "/aircraft/ana/ana-A380.jpg";
   if (code === "JA382A") return "/aircraft/ana/ana-A380%E2%91%A1.jpg";
   if (code === "JA383A") return "/aircraft/ana/ana-A380%E2%91%A2.jpg";
   return null;
@@ -101,7 +101,7 @@ export function getPreferredAircraftImagePath(aircraftType?: string, registratio
   if (modelKey(aircraftType) === "A380") {
     return getFlyingHonuImagePath(registration)
       || options.find((option) => option.alliance === "ANA")?.path
-      || "/aircraft/ana/ana-A380%E2%91%A0.jpg";
+      || "/aircraft/ana/ana-A380.jpg";
   }
   return options.find((option) => option.alliance === "ANA")?.path
     || options[0]?.path
@@ -116,7 +116,9 @@ export function getPreferredStarAllianceImagePath(aircraftType?: string): string
 export function getDefaultAircraftImagePath(log: Pick<FlightLogEx, "aircraftType" | "flightNumber" | "registration" | "aircraftImagePath"> & { operatingCarrier?: string }): string {
   const registration = (log.registration || "").toUpperCase().replace(/\s/g, "");
   const honuPath = getFlyingHonuImagePath(registration);
-  if (honuPath) return honuPath;
+  const savedPath = log.aircraftImagePath;
+  if (savedPath && savedPath.startsWith("/aircraft/")) return savedPath;
+  if (honuPath && modelKey(log.aircraftType) === "A380") return honuPath;
   if (log.operatingCarrier && log.operatingCarrier !== "NH") return getPreferredStarAllianceImagePath(log.aircraftType);
   if (modelKey(log.aircraftType) === "A380") return getPreferredAircraftImagePath(log.aircraftType, registration);
   return getPreferredAircraftImagePath(log.aircraftType, registration);

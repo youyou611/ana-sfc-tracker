@@ -2,6 +2,8 @@
 
 :root {
   color-scheme: light;
+  background: #070f1e;
+  background-color: #070f1e;
   --background: #f4f7fb;
   --foreground: #14243b;
   --surface: #ffffff;
@@ -24,8 +26,16 @@
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  min-height: 100%;
+  background: #070f1e;
+  background-color: #070f1e;
+}
+
 body {
-  background: var(--background);
+  min-height: 100vh;
+  background: #070f1e;
+  background-color: #070f1e;
   color: var(--foreground);
   font-family: Arial, "Hiragino Kaku Gothic ProN", "Yu Gothic UI", Meiryo, sans-serif;
   font-feature-settings: "palt";
@@ -96,7 +106,7 @@ canvas {
 .sfc-app-shell {
   min-height: 100vh;
   min-height: 100dvh;
-  background: var(--background);
+  background: #070f1e;
   color: var(--foreground);
 }
 

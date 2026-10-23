@@ -5,13 +5,14 @@ import ClientLayout from './ClientLayout'
 import Script from 'next/script' // ← Next.js専用のスクリプト読み込み機能
 
 export const metadata: Metadata = {
-  title: 'SFC修行トラッカー 2026',
-  description: 'ANAプレミアムポイントとフライト履歴を管理するANA専用アプリ',
-  applicationName: 'SFC修行トラッカー',
+  title: 'SFC Tracker',
+  description: '青組マイラーのためのプレミアムポイント計算・フライト記録ツール。ANAのSFC修行やプレミアムポイント（PP）管理に対応した非公式ツールです。',
+  applicationName: 'SFC Tracker',
+  keywords: ['SFC Tracker', 'SFC修行', 'ANA', 'プレミアムポイント', 'PP計算', 'フライト記録', '非公式ツール'],
   // iPhoneで「ホーム画面に追加」したときにアプリとして起動させる設定
   appleWebApp: {
     capable: true,
-    title: 'SFCトラッカー',
+    title: 'SFC Tracker',
     statusBarStyle: 'black-translucent',
   },
   formatDetection: { telephone: false },
@@ -22,7 +23,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   viewportFit: 'cover',
-  themeColor: '#002561',
+  themeColor: '#070F1E',
 }
 
 export default function RootLayout({
@@ -36,7 +37,7 @@ export default function RootLayout({
         {/* AdSenseのコードはエラーを防ぐため、ここではなく下の <Script> で読み込みます */}
       </head>
 
-      <body className="bg-slate-50 antialiased">
+      <body className="bg-[#070F1E] antialiased" style={{ backgroundColor: '#070F1E' }}>
         
         {/* Google AdSense の審査用コード */}
         <Script

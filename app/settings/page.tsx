@@ -121,13 +121,13 @@ export default function SettingsPage() {
       <div className="bg-gradient-to-br from-[#002561] via-[#003477] to-[#001b47] text-white pt-6 pb-7 px-4 sm:px-6 shadow-md">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-200">ANA SFC TRACKER</p>
+            <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-blue-200">SFC TRACKER</p>
             <h1 className="text-xl sm:text-2xl font-black tracking-tight mt-1">設定・データ管理</h1>
             <p className="text-xs text-blue-100/75 mt-1">ステータス目標、データバックアップ、各種リンクの管理</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center px-3 py-1 rounded-full bg-white/10 text-blue-100 text-xs font-semibold backdrop-blur-sm border border-white/15">
-              Version 1.1.0
+              Version 1.2.0
             </span>
           </div>
         </div>
@@ -379,7 +379,7 @@ export default function SettingsPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="text-[10px] text-slate-400 block font-medium">バージョン</span>
-              <span className="text-xs font-bold text-slate-700 mt-0.5 block">1.1.0</span>
+              <span className="text-xs font-bold text-slate-700 mt-0.5 block">1.2.0</span>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="text-[10px] text-slate-400 block font-medium">アライアンス</span>
@@ -394,6 +394,55 @@ export default function SettingsPage() {
               <span className="text-xs font-bold text-slate-700 mt-0.5 block">2026年対応済</span>
             </div>
           </div>
+        </section>
+
+        <section aria-labelledby="release-history-heading" className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div>
+              <h2 id="release-history-heading" className="text-sm font-black text-slate-900">バージョン履歴・更新履歴</h2>
+              <p className="mt-1 text-xs text-slate-500">アプリの主な変更内容</p>
+            </div>
+            <span className="rounded-full bg-blue-50 px-3 py-1 text-[10px] font-black text-[#003184]">更新情報</span>
+          </div>
+          <ol className="space-y-4">
+            <li className="relative border-l-2 border-blue-200 pl-4">
+              <span className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-[#2878F0]" />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-slate-900">v1.2.0</span>
+                <span className="text-[10px] font-semibold text-slate-400">2026年10月16日</span>
+                <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">最新</span>
+              </div>
+              <p className="mt-1 text-xs font-bold text-slate-700">計算機の操作性・乗り継ぎ入力を改善</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">国内線／国際線／提携航空会社と片道／往復の選択順を整理。客室クラス、積算率入力、経由地と区間別の便名・座席・予約クラスを追加しました。</p>
+            </li>
+            <li className="relative border-l-2 border-slate-200 pl-4">
+              <span className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-slate-300" />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-slate-900">v1.1.0</span>
+                <span className="text-[10px] font-semibold text-slate-400">2026年10月中旬</span>
+              </div>
+              <p className="mt-1 text-xs font-bold text-slate-700">フライト管理とデータ管理を改善</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">搭乗履歴の検索・並べ替え、設定のJSONバックアップ／復元、路線マップや統計画面の改善を行いました。</p>
+            </li>
+            <li className="relative border-l-2 border-transparent pl-4">
+              <span className="absolute -left-[5px] top-1 h-2 w-2 rounded-full bg-slate-300" />
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-black text-slate-900">v1.0.0</span>
+                <span className="text-[10px] font-semibold text-slate-400">初期リリース</span>
+              </div>
+              <p className="mt-1 text-xs font-bold text-slate-700">フライト記録・PP計算の基本機能</p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">搭乗記録、プレミアムポイント計算、設定保存を提供します。</p>
+            </li>
+          </ol>
+        </section>
+
+        <section aria-label="利用規約とプライバシー" className="rounded-2xl border border-slate-200/80 bg-white px-5 py-4 shadow-sm">
+          <p className="text-xs leading-relaxed text-slate-500">
+            ※本アプリは個人のファンによる非公式ツールであり、実在する航空会社とは一切関係ありません。
+          </p>
+          <Link href="/terms" className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-[#003184] underline decoration-blue-200 underline-offset-4 hover:text-blue-700">
+            利用規約・免責事項・プライバシーポリシー <span aria-hidden="true">›</span>
+          </Link>
         </section>
       </div>
     </main>
