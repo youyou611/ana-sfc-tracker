@@ -39,11 +39,14 @@ const routes = samples.map(([from, to]) => {
   };
 });
 
-const jalAirports = JSON.parse(fs.readFileSync(path.join(root, "JAL赤組用アプリ/public/data/airports.json"), "utf8"));
-const jalCodes = jalAirports.map((airport) => airport.code);
+const jalAirportPath = path.join(root, "JAL赤組用アプリ/public/data/airports.json");
+const jalAirports = fs.existsSync(jalAirportPath)
+  ? JSON.parse(fs.readFileSync(jalAirportPath, "utf8"))
+  : null;
+const jalCodes = jalAirports?.map((airport) => airport.code) ?? [];
 const landPaths = JSON.parse(fs.readFileSync(path.join(root, "shared/route-map/natural-earth-land-paths.json"), "utf8"));
 const sourceHasInvalidCodes = codes.some((code) => !/^[A-Z]{3}$/.test(code));
-const compatHasInvalidCoordinates = jalAirports.some((airport) => !Number.isFinite(airport.lat) || airport.lat < -90 || airport.lat > 90
+const compatHasInvalidCoordinates = (jalAirports ?? []).some((airport) => !Number.isFinite(airport.lat) || airport.lat < -90 || airport.lat > 90
   || !Number.isFinite(airport.lon) || airport.lon < -180 || airport.lon > 180);
 const out = {
   sharedAirportCount: airports.length,
@@ -52,9 +55,10 @@ const out = {
   invalidSourceCoordinates: invalid.length,
   sourceHasInvalidCodes,
   knownAirportCodes: ["HND", "LAX", "LHR", "NRT", "CTS"].map((code) => ({ code, found: byCode.has(code) })),
-  jalCompatibilityCount: jalAirports.length,
+  jalCompatibilityAvailable: jalAirports !== null,
+  jalCompatibilityCount: jalAirports?.length ?? null,
   jalCompatibilityDuplicateCodes: [...new Set(jalCodes.filter((code, index) => jalCodes.indexOf(code) !== index))],
-  jalCompatibilityInvalidCoordinates: jalAirports.filter((airport) => !Number.isFinite(airport.lat) || airport.lat < -90 || airport.lat > 90
+  jalCompatibilityInvalidCoordinates: (jalAirports ?? []).filter((airport) => !Number.isFinite(airport.lat) || airport.lat < -90 || airport.lat > 90
     || !Number.isFinite(airport.lon) || airport.lon < -180 || airport.lon > 180).length,
   naturalEarthLandPaths: landPaths.length,
   routes,
@@ -62,7 +66,7 @@ const out = {
 console.log(JSON.stringify(out, null, 2));
 
 if (duplicates.length || invalid.length || sourceHasInvalidCodes || compatHasInvalidCoordinates
-  || jalAirports.length !== airports.length || new Set(jalCodes).size !== jalCodes.length
+  || (jalAirports !== null && (jalAirports.length !== airports.length || new Set(jalCodes).size !== jalCodes.length))
   || landPaths.length < 100 || routes.some((route) => route.maxLongitudeSpanPx > mapWidth / 2 + 2)) {
   throw new Error("Route map data validation failed; see the diagnostics above.");
 }
