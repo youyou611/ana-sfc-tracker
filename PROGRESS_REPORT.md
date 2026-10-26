@@ -330,3 +330,12 @@
 - **検証:** `npx.cmd eslint next.config.ts shared/route-map/WorldRouteMap.tsx` — エラー・警告なし。`npx.cmd tsc --noEmit` — 成功。`npm.cmd run build` — 成功（16ルート生成）。Turbopack開発サーバーでworker URLと`/map`のHTTP 200を確認。
 - **未実施:** 実ブラウザーのDevToolsでWorkerが正常に起動し、ベースマップとGeoJSONレイヤーが共に表示されることの手動目視確認。
 
+## 2026-10-24 shared参照・出力トレース設定の整合
+
+- **状態:** ソース参照の修正と本番ビルドは完了。`outputFileTracingRoot` によるファイル包含は設定に反映したが、Next.jsのページNFTトレースだけではクライアントバンドルに取り込まれる共有ソースの包含を判定できないため、単体フォルダーだけでのデプロイ成功は未確認。
+- **原因:** `app/layout.tsx` のCSS importが `@/shared/route-map/WorldRouteMap.css` で、同じ共有フォルダーへの他の参照は相対パスだった。現行の `next.config.ts` には README が説明する `outputFileTracingRoot` の設定も存在していなかった。
+- **変更ファイル:** `app/layout.tsx`、`next.config.ts`、`README.md`。
+- **変更内容:** CSS importを `../shared/route-map/WorldRouteMap.css` に統一。`outputFileTracingRoot` をリポジトリルート（`path.resolve(process.cwd())`）に設定。READMEで、`shared/` を含むリポジトリルートをビルド・デプロイコンテキストに含める必要があり、トレース設定は欠落ファイルを補わないことを明記。
+- **検証:** `npx.cmd tsc --noEmit` 成功。`npx.cmd eslint next.config.ts app/layout.tsx app/components/WorldRouteMap.tsx app/components/AirportAndGuideSection.tsx` 成功（エラー・警告なし）。`npm.cmd run build` 成功（Next.js 16.1.6 Webpack、16ページ生成）。`.next/server/app/map.html` が生成されたことを確認。
+- **制約・未実施:** この作業環境では `git` 実行ファイルが見つからず、差分状態はGit CLIでは確認できていない。ブラウザーでの実表示確認と、ホスティング環境でのデプロイは未実施。デプロイ側がこのリポジトリルートを取得せずANAアプリのフォルダーだけをビルドする場合、`shared/` が存在しないため引き続き解決できない。
+

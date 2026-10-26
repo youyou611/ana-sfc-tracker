@@ -4,7 +4,7 @@
 
 地図描画はルートの `shared/route-map/WorldRouteMap.tsx` を使用し、`app/components/WorldRouteMap.tsx` で既存の `FlightLogEx` と共通形式を相互変換します。空港座標はルートの `shared/world-airports.json`、陸地形状はNatural Earth由来の共有SVGパスを使います。フライトIDで元の記録を特定して既存の詳細モーダルを開きます。保存データとANA PPの計算ロジックは変更しません。
 
-型チェック・lint・ビルドはこのアプリのフォルダーから実行できます。`npm run build` は日本語を含むフォルダーパスでTurbopackが内部エラーになる問題を避けるためWebpackを使用します。ビルド・デプロイのコンテキストにはリポジトリルートも含めてください。`next.config.ts` の `outputFileTracingRoot` が共有ソースを含めます。
+型チェック・lint・ビルドはリポジトリルートで実行します。`npm run build` は日本語を含むフォルダーパスでTurbopackが内部エラーになる問題を避けるためWebpackを使用します。`shared/` を参照するため、ビルド・デプロイのコンテキストには必ずこのリポジトリルート全体（`shared/` を含む）を含めてください。`next.config.ts` の `outputFileTracingRoot` はリポジトリルートを指定しますが、ビルドコンテキストに存在しないファイルを補うものではありません。
 
 ANAのプレミアムポイント（PP）、ステータス目標、費用、搭乗記録を管理するANA専用アプリです。
 
