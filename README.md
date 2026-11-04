@@ -1,4 +1,4 @@
-# ANA修行トラッカー
+# Flight Tracker 青組
 
 ## 共通路線マップ
 
