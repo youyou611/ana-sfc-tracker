@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   // Keep files imported from the repository-level shared/ directory inside
   // Next.js's output tracing context when this app is built from the repo root.
   outputFileTracingRoot: path.resolve(process.cwd()),
+  turbopack: {},
   // MapLibre GL JS v6's worker and shared module must be emitted as same-origin
   // public assets for Next.js Turbopack and Webpack builds.
   webpack(config) {
